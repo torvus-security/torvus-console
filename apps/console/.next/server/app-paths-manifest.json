@@ -1,0 +1,4 @@
+{
+  "/page": "app/page.js",
+  "/api/csp-report/route": "app/api/csp-report/route.js"
+}
