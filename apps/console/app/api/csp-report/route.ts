@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
-
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const report = await request.json();
-    console.warn('[csp-report]', JSON.stringify(report));
-  } catch (error) {
-    console.warn('[csp-report] failed to parse report body', error);
+    // Best-effort parse; keep it resilient
+    await req.text();
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  } catch {
+    return new Response(null, { status: 204 });
   }
-
-  return NextResponse.json({ received: true }, { status: 200 });
 }
