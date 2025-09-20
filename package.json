@@ -1,0 +1,16 @@
+{
+  "name": "torvus-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@8.15.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:console": "pnpm --filter @torvus/console dev",
+    "build:console": "pnpm --filter @torvus/console build",
+    "start:console": "pnpm --filter @torvus/console start",
+    "test:console": "pnpm --filter @torvus/console test"
+  }
+}
