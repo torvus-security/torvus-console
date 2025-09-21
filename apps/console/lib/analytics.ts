@@ -21,7 +21,7 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/overview', label: 'Overview', permission: 'metrics.view', group: 'Operations' },
   { href: '/alerts', label: 'Alerts', group: 'Operations' },
-  { href: '/investigations', label: 'Investigations', group: 'Operations' },
+  { href: '/investigations', label: 'Investigations', permission: 'investigations.view', group: 'Operations' },
   { href: '/releases', label: 'Releases', permission: 'releases.simulate', group: 'Operations' },
   { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' }
 ];

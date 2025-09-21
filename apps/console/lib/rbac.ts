@@ -1,4 +1,10 @@
-export type RoleKey = 'viewer' | 'auditor' | 'operator' | 'security_admin' | 'break_glass';
+export type RoleKey =
+  | 'viewer'
+  | 'auditor'
+  | 'operator'
+  | 'investigator'
+  | 'security_admin'
+  | 'break_glass';
 
 export type PermissionKey =
   | 'metrics.view'
@@ -7,7 +13,9 @@ export type PermissionKey =
   | 'releases.simulate'
   | 'releases.execute'
   | 'policy.edit'
-  | 'staff.manage';
+  | 'staff.manage'
+  | 'investigations.view'
+  | 'investigations.manage';
 
 export interface StaffSubject {
   id: string;
@@ -16,8 +24,9 @@ export interface StaffSubject {
 
 export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
   viewer: ['metrics.view', 'audit.read'],
-  auditor: ['metrics.view', 'audit.read', 'audit.export'],
+  auditor: ['metrics.view', 'audit.read', 'audit.export', 'investigations.view'],
   operator: ['metrics.view', 'audit.read', 'releases.simulate'],
+  investigator: ['metrics.view', 'audit.read', 'investigations.view', 'investigations.manage'],
   security_admin: [
     'metrics.view',
     'audit.read',
@@ -25,7 +34,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
     'releases.simulate',
     'releases.execute',
     'policy.edit',
-    'staff.manage'
+    'staff.manage',
+    'investigations.view',
+    'investigations.manage'
   ],
   break_glass: [
     'metrics.view',
@@ -34,7 +45,9 @@ export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
     'releases.simulate',
     'releases.execute',
     'policy.edit',
-    'staff.manage'
+    'staff.manage',
+    'investigations.view',
+    'investigations.manage'
   ]
 };
 
