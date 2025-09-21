@@ -1,6 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getRequesterEmail, getStaffUserByEmail, getUserRolesByEmail, type StaffUserRecord } from '../../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import {
+  getRequesterEmail,
+  getStaffUserByEmail,
+  getUserRolesByEmail,
+  type StaffUserRecord
+} from '../../../lib/auth';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
 
 type ViewerOk = {
   type: 'ok';
