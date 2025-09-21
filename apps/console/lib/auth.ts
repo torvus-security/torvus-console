@@ -6,6 +6,7 @@ import { anonymiseEmail } from './analytics';
 export type SessionUser = {
   id: string;
   email: string;
+  user_metadata?: { name?: string } & Record<string, unknown>;
 };
 
 export type StaffUser = {
@@ -38,7 +39,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   return {
     id: data.user.id,
-    email: data.user.email ?? 'unknown@torvussecurity.com'
+    email: data.user.email ?? 'unknown@torvussecurity.com',
+    user_metadata: data.user.user_metadata ?? undefined
   };
 });
 
@@ -49,25 +51,44 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   }
 
   const supabase = createSupabaseServiceRoleClient();
-  const { data: staffRecordData, error: staffError } = await (supabase
+  const { data: staffRecordRaw, error: staffError } = await (supabase
     .from('staff_users') as any)
     .select('user_id, email, display_name, passkey_enrolled')
     .eq('user_id', sessionUser.id)
     .maybeSingle();
 
-  const staffRecord = staffRecordData as
-    | {
-        user_id: string;
-        email: string;
-        display_name: string;
-        passkey_enrolled: boolean;
-      }
-    | null;
-
   if (staffError) {
     console.error('Error loading staff user', staffError);
     throw new StaffAccessError('Unable to load staff profile', 503);
   }
+
+  type StaffRecordRow = {
+    user_id: string;
+    email: string;
+    display_name: string;
+    passkey_enrolled: boolean;
+  };
+
+  let staffRecordData = staffRecordRaw as StaffRecordRow | null;
+
+  if (!staffRecordData && sessionUser.email) {
+    const { data: byEmail } = await (supabase
+      .from('staff_users') as any)
+      .select('user_id, email, display_name, passkey_enrolled')
+      .eq('email', (sessionUser.email || '').toLowerCase())
+      .maybeSingle();
+
+    staffRecordData = (byEmail as StaffRecordRow | null) || null;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.debug('staff-lookup', {
+      sessionUser: { id: sessionUser.id, email: sessionUser.email },
+      found: Boolean(staffRecordData)
+    });
+  }
+
+  const staffRecord = staffRecordData;
 
   if (!staffRecord) {
     return null;
@@ -76,7 +97,7 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   const { data: roleMembershipRows, error: roleMembershipError } = await (supabase
     .from('staff_role_members') as any)
     .select('role_id')
-    .eq('user_id', sessionUser.id);
+    .eq('user_id', staffRecord.user_id);
 
   const roleMemberships = roleMembershipRows as Array<{ role_id: string }> | null;
 
@@ -123,8 +144,11 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
 
   return {
     id: staffRecord.user_id,
-    email: staffRecord.email,
-    displayName: staffRecord.display_name,
+    email: staffRecord.email ?? sessionUser.email!,
+    displayName:
+      staffRecord.display_name ??
+      (sessionUser.user_metadata?.name as string | undefined) ??
+      sessionUser.email!,
     passkeyEnrolled: staffRecord.passkey_enrolled,
     roles,
     permissions: Array.from(permissionsSet),
