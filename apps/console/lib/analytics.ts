@@ -15,7 +15,7 @@ type NavItem = {
   href: string;
   label: string;
   permission?: PermissionKey;
-  group?: 'Operations' | 'Security' | 'Admin';
+  group?: 'Operations' | 'Security' | 'Admin' | 'Account';
 };
 
 const NAV_ITEMS: NavItem[] = [
@@ -23,10 +23,11 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/alerts', label: 'Alerts', group: 'Operations' },
   { href: '/investigations', label: 'Investigations', permission: 'investigations.view', group: 'Operations' },
   { href: '/releases', label: 'Releases', permission: 'releases.simulate', group: 'Operations' },
-  { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' }
+  { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' },
+  { href: '/profile', label: 'Profile', group: 'Account' }
 ];
 
-const NAV_GROUP_ORDER: Array<NonNullable<NavItem['group']>> = ['Operations', 'Security', 'Admin'];
+const NAV_GROUP_ORDER: Array<NonNullable<NavItem['group']>> = ['Operations', 'Security', 'Account', 'Admin'];
 
 class AnalyticsClient {
   private readonly queue: Array<{ event: AnalyticsEventKey; payload: AnalyticsPayload }> = [];

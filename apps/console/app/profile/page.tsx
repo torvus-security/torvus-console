@@ -1,8 +1,55 @@
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ProfileForm, type ProfileFormState } from './ProfileForm';
 import { getStaffUser } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
+import type { SelfProfile } from '../../lib/self';
+
+type HeaderList = ReturnType<typeof headers>;
+
+async function loadSelfProfile(headerList: HeaderList): Promise<SelfProfile | null> {
+  const host = headerList.get('host');
+  if (!host) {
+    return null;
+  }
+
+  const protocol = headerList.get('x-forwarded-proto') ?? 'http';
+  const url = `${protocol}://${host}/api/self`;
+  const forwarded = new Headers();
+  const headerNames = [
+    'cookie',
+    'cf-access-authenticated-user-email',
+    'cf-access-jwt-assertion',
+    'cf-access-authenticated-user-sub',
+    'x-user-email'
+  ];
+
+  for (const name of headerNames) {
+    const value = headerList.get(name);
+    if (value) {
+      forwarded.set(name, value);
+    }
+  }
+
+  try {
+    const response = await fetch(url, { headers: forwarded, cache: 'no-store' });
+    if (response.status === 401) {
+      return null;
+    }
+
+    if (!response.ok) {
+      const message = await response.text();
+      throw new Error(message || 'failed to load profile');
+    }
+
+    return (await response.json()) as SelfProfile;
+  } catch (error) {
+    console.error('failed to load self profile via api', error);
+    return null;
+  }
+}
 
 async function saveProfileAction(
   _prevState: ProfileFormState,
@@ -53,7 +100,11 @@ async function saveProfileAction(
 }
 
 export default async function ProfilePage() {
-  const staffUser = await getStaffUser();
+  const headerList = headers();
+  const [staffUser, selfProfile] = await Promise.all([
+    getStaffUser(),
+    loadSelfProfile(headerList)
+  ]);
 
   if (!staffUser) {
     return (
@@ -67,19 +118,20 @@ export default async function ProfilePage() {
     <div className="flex flex-col gap-6">
       <section className="rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
         <div className="mb-8 flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold text-slate-100">My profile</h1>
+          <h1 className="text-3xl font-semibold text-slate-100">Profile &amp; access</h1>
           <p className="text-sm text-slate-400">
             Manage how your identity appears across audit trails and console workflows.
           </p>
         </div>
         <ProfileForm
           action={saveProfileAction}
-          initialDisplayName={staffUser.displayName}
-          email={staffUser.email}
-          roles={staffUser.roles}
+          initialDisplayName={selfProfile?.display_name ?? staffUser.displayName}
+          email={selfProfile?.email ?? staffUser.email}
+          roles={selfProfile?.roles ?? staffUser.roles}
           passkeyEnrolled={staffUser.passkeyEnrolled}
         />
       </section>
+      <PersonalAccessTokensPanel />
     </div>
   );
 }
