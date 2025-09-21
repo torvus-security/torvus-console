@@ -138,6 +138,12 @@ export default async function OverviewPage() {
             <span className={clsx('metric', mergedStats.releaseTrainStatus)}>{mergedStats.releaseTrainStatus}</span>
           </header>
           <p className="muted">Release execution remains feature-flagged pending dual-control validation.</p>
+          <Link
+            href="/releases"
+            className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
+          >
+            View release requests →
+          </Link>
         </article>
         <article className="card">
           <header>
