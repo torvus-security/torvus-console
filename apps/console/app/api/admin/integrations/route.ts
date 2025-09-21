@@ -39,7 +39,7 @@ function sanitisePref(row: PrefRow) {
 
 export async function GET(request: Request) {
   const resolution = await requireSecurityAdmin(request);
-  if (!resolution.ok) {
+  if (resolution.ok === false) {
     return resolution.response;
   }
 

@@ -22,7 +22,7 @@ export async function PATCH(
   { params }: { params: { event: string } }
 ) {
   const resolution = await requireSecurityAdmin(request);
-  if (!resolution.ok) {
+  if (resolution.ok === false) {
     return resolution.response;
   }
 

@@ -16,7 +16,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   const resolution = await requireSecurityAdmin(request);
-  if (!resolution.ok) {
+  if (resolution.ok === false) {
     return resolution.response;
   }
 
