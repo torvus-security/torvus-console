@@ -6,6 +6,7 @@ import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import type { SelfProfile } from '../../lib/self';
+import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
 
 type HeaderList = ReturnType<typeof headers>;
 
@@ -76,6 +77,15 @@ async function saveProfileAction(
   const supabase = createSupabaseServiceRoleClient();
   const identifierColumn = staffUser.id ? 'user_id' : 'email';
   const identifierValue = staffUser.id ?? staffUser.email;
+
+  try {
+    await enforceNotReadOnly(null, staffUser.roles, 'action.profile.update');
+  } catch (error) {
+    if (isReadOnlyError(error)) {
+      return { error: error.message };
+    }
+    throw error;
+  }
 
   const { error, data } = await (supabase
     .from('staff_users') as any)

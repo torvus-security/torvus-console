@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logAudit } from '../../../server/audit';
+import { enforceNotReadOnly, isReadOnlyError, toReadOnlyResponse } from '../../../server/guard';
 import { INVESTIGATION_SEVERITIES } from '../../../lib/investigations/constants';
 import { getInvestigationById, type InvestigationDetail } from '../../../lib/data/investigations';
 import {
@@ -44,6 +45,15 @@ export async function POST(request: Request) {
 
   if (!canManageInvestigations(roles) || !staff) {
     return new Response('forbidden', { status: 403 });
+  }
+
+  try {
+    await enforceNotReadOnly(request, roles, 'api.investigations.create');
+  } catch (error) {
+    if (isReadOnlyError(error)) {
+      return toReadOnlyResponse(error);
+    }
+    throw error;
   }
 
   let body: unknown;

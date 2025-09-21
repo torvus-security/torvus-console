@@ -11,6 +11,7 @@ import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
 import { IdentityPill } from '../components/IdentityPill';
 import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
+import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 
 export const metadata: Metadata = {
   title: 'Torvus Console',
@@ -25,6 +26,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const pathname = headerList.get('x-pathname') ?? '/';
   const nonce = headerList.get('x-csp-nonce') ?? '';
   const correlationId = headerList.get('x-correlation-id') ?? crypto.randomUUID();
+  const readOnlyEnabled = (headerList.get('x-read-only') ?? 'false').toLowerCase() === 'true';
+  const readOnlyMessage = headerList.get('x-read-only-message') ?? 'Maintenance in progress';
 
   const showMinimalShell = pathname.startsWith('/enroll-passkey');
 
@@ -73,6 +76,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       { href: '/admin/roles', label: 'Roles' },
       { href: '/admin/integrations', label: 'Integrations' },
       { href: '/admin/integrations/intake', label: 'Intake Webhooks' },
+      { href: '/admin/settings', label: 'Settings' },
       { href: '/admin/secrets', label: 'Secrets' },
       { href: '/admin/secrets/approvals', label: 'Secret Approvals' },
       { href: '/staff', label: 'Staff' }
@@ -121,6 +125,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           </footer>
         </aside>
         <div className="content">
+          {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
           <header className="topbar">
             <div className="breadcrumbs">{pathname === '/' ? 'Overview' : pathname.replace('/', '').replace('-', ' ')}</div>
             <div className="topbar__meta" data-nonce={nonce}>

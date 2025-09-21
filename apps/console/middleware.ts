@@ -2,7 +2,209 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { buildReportToHeader, generateNonce } from './lib/security';
 
-export function middleware(request: NextRequest) {
+type ReadOnlyState = {
+  enabled: boolean;
+  message: string;
+  allow_roles: string[];
+};
+
+const DEFAULT_READ_ONLY: ReadOnlyState = {
+  enabled: false,
+  message: 'Maintenance in progress',
+  allow_roles: ['security_admin']
+};
+
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const EXEMPT_PATH_PREFIXES = ['/api/admin/settings/read-only', '/api/breakglass/', '/api/auth/'];
+const READ_ONLY_CACHE_TTL_MS = 10_000;
+const ROLES_CACHE_TTL_MS = 10_000;
+
+type CachedValue<T> = {
+  expiresAt: number;
+  value: T;
+};
+
+type ReadOnlyCache = CachedValue<ReadOnlyState> | null;
+type RoleCache = Map<string, CachedValue<string[]>>;
+
+const globalScope = globalThis as typeof globalThis & {
+  __readOnlyState?: ReadOnlyCache;
+  __roleCache?: RoleCache;
+};
+
+function ensureEnv(name: 'SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE'): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable ${name}`);
+  }
+  return value;
+}
+
+function normaliseRoles(input: unknown): string[] {
+  if (!Array.isArray(input)) {
+    return [];
+  }
+
+  const unique = new Set<string>();
+  for (const role of input) {
+    if (typeof role !== 'string') {
+      continue;
+    }
+    const trimmed = role.trim();
+    if (!trimmed) {
+      continue;
+    }
+    unique.add(trimmed.toLowerCase());
+  }
+
+  return Array.from(unique);
+}
+
+function shouldBypass(pathname: string): boolean {
+  return EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+async function fetchReadOnlyState(): Promise<ReadOnlyState> {
+  const now = Date.now();
+  const cached = globalScope.__readOnlyState;
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const supabaseUrl = ensureEnv('SUPABASE_URL');
+  const serviceRoleKey = ensureEnv('SUPABASE_SERVICE_ROLE');
+  const url = `${supabaseUrl}/rest/v1/app_settings?select=value&key=eq.read_only`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        Prefer: 'return=representation'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`unexpected status ${response.status}`);
+    }
+
+    const rows = (await response.json()) as Array<{ value?: Partial<ReadOnlyState> }>;
+    const value = rows?.[0]?.value ?? null;
+    const state: ReadOnlyState = {
+      enabled: Boolean(value?.enabled),
+      message: typeof value?.message === 'string' && value.message.trim()
+        ? value.message.trim()
+        : DEFAULT_READ_ONLY.message,
+      allow_roles: normaliseRoles(value?.allow_roles).length
+        ? normaliseRoles(value?.allow_roles)
+        : [...DEFAULT_READ_ONLY.allow_roles]
+    };
+
+    if (!state.allow_roles.some((role) => role.toLowerCase() === 'security_admin')) {
+      state.allow_roles.push('security_admin');
+    }
+
+    globalScope.__readOnlyState = {
+      expiresAt: now + READ_ONLY_CACHE_TTL_MS,
+      value: state
+    };
+
+    return state;
+  } catch (error) {
+    console.error('[middleware][read-only] failed to fetch state', error);
+    return { ...DEFAULT_READ_ONLY };
+  }
+}
+
+async function loadRolesForEmail(email: string | null): Promise<string[]> {
+  if (!email) {
+    return [];
+  }
+
+  const now = Date.now();
+  const cache = (globalScope.__roleCache ??= new Map());
+  const cached = cache.get(email);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const supabaseUrl = ensureEnv('SUPABASE_URL');
+  const serviceRoleKey = ensureEnv('SUPABASE_SERVICE_ROLE');
+  const params = new URLSearchParams({
+    select: 'staff_role_members!inner(staff_roles(name))',
+    email: `eq.${email}`
+  });
+  const url = `${supabaseUrl}/rest/v1/staff_users?${params.toString()}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        Prefer: 'return=representation'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`unexpected status ${response.status}`);
+    }
+
+    const rows = (await response.json()) as Array<{
+      staff_role_members?: Array<{
+        staff_roles?: { name?: string | null } | null;
+      }> | null;
+    }>;
+
+    const roles = new Set<string>();
+    for (const membership of rows?.[0]?.staff_role_members ?? []) {
+      const name = membership?.staff_roles?.name;
+      if (typeof name === 'string' && name.trim()) {
+        roles.add(name.trim().toLowerCase());
+      }
+    }
+
+    const value = Array.from(roles);
+    cache.set(email, { value, expiresAt: now + ROLES_CACHE_TTL_MS });
+    return value;
+  } catch (error) {
+    console.error('[middleware][read-only] failed to resolve roles', error);
+    return [];
+  }
+}
+
+function getRequesterEmail(request: NextRequest): string | null {
+  const headers = request.headers;
+  const direct = headers.get('cf-access-authenticated-user-email') ?? headers.get('x-user-email');
+  if (direct) {
+    return direct.trim().toLowerCase();
+  }
+  for (const [name, value] of headers.entries()) {
+    if (name.toLowerCase() === 'cf-access-authenticated-user-email') {
+      return value.trim().toLowerCase();
+    }
+    if (name.toLowerCase() === 'x-user-email') {
+      return value.trim().toLowerCase();
+    }
+  }
+  return null;
+}
+
+function applyResponseHeaders(response: NextResponse, correlationId: string) {
+  response.headers.set('x-correlation-id', correlationId);
+  response.headers.set('Report-To', buildReportToHeader());
+  response.headers.set(
+    'NEL',
+    JSON.stringify({
+      report_to: 'torvus-console-csp',
+      max_age: 10886400,
+      include_subdomains: false
+    })
+  );
+}
+
+export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
   const requestHeaders = new Headers(request.headers);
   const { pathname } = request.nextUrl;
@@ -18,6 +220,40 @@ export function middleware(request: NextRequest) {
   const hasCfHeader = request.headers.has('cf-access-jwt-assertion');
   if (hasCfCookie || hasCfHeader) {
     requestHeaders.set('x-cloudflare-access', 'true');
+  }
+
+  const readOnly = await fetchReadOnlyState();
+  requestHeaders.set('x-read-only', String(readOnly.enabled));
+  requestHeaders.set('x-read-only-message', readOnly.message);
+  requestHeaders.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
+
+  const method = request.method.toUpperCase();
+  const isMutating = MUTATING_METHODS.has(method);
+  const isApiRoute = pathname.startsWith('/api/');
+
+  if (readOnly.enabled && isMutating && isApiRoute && !shouldBypass(pathname)) {
+    const email = getRequesterEmail(request);
+    const roles = await loadRolesForEmail(email);
+    const allowedSet = new Set(readOnly.allow_roles.map((role) => role.toLowerCase()));
+    const allowed = roles.some((role) => allowedSet.has(role));
+
+    if (!allowed) {
+      const response = NextResponse.json(
+        {
+          error: 'read_only',
+          message: readOnly.message
+        },
+        {
+          status: 503
+        }
+      );
+
+      response.headers.set('x-read-only', 'true');
+      response.headers.set('x-read-only-message', readOnly.message);
+      response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
+      applyResponseHeaders(response, correlationId);
+      return response;
+    }
   }
 
   let response: NextResponse;
@@ -38,17 +274,11 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  response.headers.set('x-correlation-id', correlationId);
+  response.headers.set('x-read-only', String(readOnly.enabled));
+  response.headers.set('x-read-only-message', readOnly.message);
+  response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
 
-  response.headers.set('Report-To', buildReportToHeader());
-  response.headers.set(
-    'NEL',
-    JSON.stringify({
-      report_to: 'torvus-console-csp',
-      max_age: 10886400,
-      include_subdomains: false
-    })
-  );
+  applyResponseHeaders(response, correlationId);
 
   return response;
 }
