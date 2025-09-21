@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  trailingSlash: false,
   experimental: {
     serverActions: {
       bodySizeLimit: '1mb'
