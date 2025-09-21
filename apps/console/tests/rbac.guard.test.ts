@@ -17,12 +17,21 @@ describe('RBAC guard', () => {
     const permissions = ROLE_PERMISSIONS.auditor;
     expect(hasPermission(permissions, 'audit.export')).toBe(true);
     expect(hasPermission(permissions, 'releases.simulate')).toBe(false);
+    expect(hasPermission(permissions, 'investigations.view')).toBe(true);
+    expect(hasPermission(permissions, 'investigations.manage')).toBe(false);
   });
 
   it('operator can simulate but not execute releases', () => {
     const permissions = ROLE_PERMISSIONS.operator;
     expect(hasPermission(permissions, 'releases.simulate')).toBe(true);
     expect(hasPermission(permissions, 'releases.execute')).toBe(false);
+  });
+
+  it('investigator can manage investigations but lacks staff admin rights', () => {
+    const permissions = ROLE_PERMISSIONS.investigator;
+    expect(hasPermission(permissions, 'investigations.view')).toBe(true);
+    expect(hasPermission(permissions, 'investigations.manage')).toBe(true);
+    expect(hasPermission(permissions, 'staff.manage')).toBe(false);
   });
 
   it('security_admin inherits all permissions including staff.manage', () => {
