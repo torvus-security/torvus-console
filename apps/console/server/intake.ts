@@ -434,7 +434,7 @@ export async function upsertIntegration(
 async function loadIntegrationByName(
   kind: IntakeIntegrationKind,
   name: string
-): Promise<IntakeIntegrationRow | null> {
+): Promise<IntakeIntegrationSecretRow | null> {
   const supabase = createSupabaseServiceRoleClient<any>();
   const { data, error } = await (supabase.from('inbound_integrations') as any)
     .select('id, kind, name, secret_hash, secret_ciphertext, enabled, created_at, last_seen_at')
