@@ -85,7 +85,10 @@ function extractIp(headers: Headers): string | null {
   return null;
 }
 
-async function resolveActor(headers: Headers, supabase = createSupabaseServiceRoleClient()): Promise<ActorContext> {
+async function resolveActor(
+  headers: Headers,
+  supabase = createSupabaseServiceRoleClient<any>()
+): Promise<ActorContext> {
   let sessionUser: Awaited<ReturnType<typeof getSessionUser>> = null;
   try {
     sessionUser = await getSessionUser();
@@ -175,7 +178,7 @@ export async function logAudit(details: AuditLogInput, requestLike?: RequestLike
   }
 
   const headers = resolveHeaders(requestLike);
-  const supabase = createSupabaseServiceRoleClient();
+  const supabase = createSupabaseServiceRoleClient<any>();
   const actor = await resolveActor(headers, supabase);
 
   const ip = extractIp(headers);
