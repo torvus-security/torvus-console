@@ -9,7 +9,11 @@ function hasSecurityAdminRole(roles: string[]): boolean {
   return roles.some((role) => role.toLowerCase() === 'security_admin');
 }
 
-async function fetchPeople(baseUrl: string, emailHeader: string | null) {
+type FetchPeopleResult =
+  | { status: 401 | 403; people: null }
+  | { status: 200; people: AdminPersonRecord[] };
+
+async function fetchPeople(baseUrl: string, emailHeader: string | null): Promise<FetchPeopleResult> {
   const cookieStore = cookies();
   const cookieHeader = cookieStore
     .getAll()
@@ -30,7 +34,7 @@ async function fetchPeople(baseUrl: string, emailHeader: string | null) {
   });
 
   if (response.status === 401 || response.status === 403) {
-    return { status: response.status as const, people: null };
+    return { status: response.status as 401 | 403, people: null };
   }
 
   if (!response.ok) {
@@ -38,7 +42,7 @@ async function fetchPeople(baseUrl: string, emailHeader: string | null) {
   }
 
   const people = (await response.json()) as AdminPersonRecord[];
-  return { status: 200 as const, people };
+  return { status: 200, people };
 }
 
 export default async function AdminPeoplePage() {
