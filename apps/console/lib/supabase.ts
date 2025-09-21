@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { createServerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies, headers } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
 
 const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE'] as const;
 
@@ -16,29 +16,9 @@ export type Database = Record<string, never>; // Placeholder until Database type
 
 export function createSupabaseServerClient<TDatabase = Database>() {
   assertEnv();
-  const cookieStore = cookies();
-  return createServerClient<TDatabase>(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, {
-    cookies: {
-      get(name: string) {
-        return cookieStore.get(name)?.value;
-      },
-      set(name: string, value: string, options: any) {
-        cookieStore.set({
-          name,
-          value,
-          ...options
-        });
-      },
-      remove(name: string, options: any) {
-        cookieStore.delete({
-          name,
-          ...options
-        });
-      }
-    },
-    headers: {
-      Authorization: headers().get('Authorization') ?? ''
-    }
+  return createServerComponentClient<TDatabase>({ cookies }, {
+    supabaseUrl: process.env.SUPABASE_URL!,
+    supabaseKey: process.env.SUPABASE_ANON_KEY!
   });
 }
 

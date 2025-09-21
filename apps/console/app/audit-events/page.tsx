@@ -1,30 +1,13 @@
 import { headers } from 'next/headers';
-import { z } from 'zod';
 import { requireStaff } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { getAnalyticsClient } from '../../lib/analytics';
+import { exportAuditCsv, exportAuditJson } from './actions';
+import { FilterSchema, FilterValues, AuditEventRow } from './shared';
 
 const PAGE_SIZE = 50;
-const EXPORT_LIMIT = 1000;
-
-const FilterSchema = z.object({
-  actor: z.string().trim().min(1).max(128).optional(),
-  event: z.string().trim().min(1).max(128).optional(),
-  from: z.string().trim().optional(),
-  to: z.string().trim().optional(),
-  page: z.coerce.number().int().positive().default(1)
-});
-
-type FilterValues = z.infer<typeof FilterSchema>;
-
-type AuditEventRow = {
-  id: string;
-  actor: string;
-  event: string;
-  created_at: string;
-  object: string | null;
-  metadata: Record<string, unknown> | null;
-};
+const exportAuditCsvAction = exportAuditCsv as unknown as (formData: FormData) => Promise<void>;
+const exportAuditJsonAction = exportAuditJson as unknown as (formData: FormData) => Promise<void>;
 
 async function fetchAuditEvents(filters: FilterValues) {
   const supabase = createSupabaseServiceRoleClient();
@@ -67,114 +50,17 @@ async function fetchAuditEvents(filters: FilterValues) {
   };
 }
 
-async function fetchExportEvents(filters: FilterValues) {
-  const supabase = createSupabaseServiceRoleClient();
-  let query = supabase
-    .from('audit_events')
-    .select('id, actor, event, created_at, object, metadata')
-    .order('created_at', { ascending: false })
-    .limit(EXPORT_LIMIT);
-
-  if (filters.actor) {
-    query = query.ilike('actor', `%${filters.actor}%`);
-  }
-
-  if (filters.event) {
-    query = query.ilike('event', `%${filters.event}%`);
-  }
-
-  if (filters.from) {
-    query = query.gte('created_at', filters.from);
-  }
-
-  if (filters.to) {
-    query = query.lte('created_at', filters.to);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Failed to export audit events', error);
-    throw new Error('Unable to export audit events');
-  }
-
-  return (data ?? []) as AuditEventRow[];
-}
-
-function buildFileName(prefix: string, extension: 'csv' | 'json') {
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  return `${prefix}-${stamp}.${extension}`;
-}
-
-function toCsv(events: AuditEventRow[]) {
-  const header = 'id,actor,event,created_at,object,metadata';
-  const rows = events.map((event) => {
-    const metadata = event.metadata ? JSON.stringify(event.metadata).replace(/"/g, '""') : '';
-    const object = event.object ? event.object.replace(/"/g, '""') : '';
-    return [event.id, event.actor, event.event, event.created_at, object, metadata]
-      .map((value) => `"${value}"`).join(',');
-  });
-
-  return [header, ...rows].join('\n');
-}
-
-function toJson(events: AuditEventRow[]) {
-  return JSON.stringify(events, null, 2);
-}
-
-async function trackExport(events: AuditEventRow[], staffAnalyticsId: string, format: 'csv' | 'json') {
-  const analytics = getAnalyticsClient();
-  analytics.capture('audit_events_exported', {
-    format,
-    count: events.length,
-    user: staffAnalyticsId,
-    env: process.env.NODE_ENV ?? 'development'
-  });
-}
-
-const EXPORTABLE_FILTER_KEYS: Array<keyof FilterValues> = ['actor', 'event', 'from', 'to'];
+const EXPORTABLE_FILTER_KEYS: Array<Exclude<keyof FilterValues, 'page'>> = ['actor', 'event', 'from', 'to'];
 
 function buildFormHiddenFields(filters: FilterValues) {
   const entries: Array<[string, string]> = [];
   for (const key of EXPORTABLE_FILTER_KEYS) {
     const value = filters[key];
-    if (value) {
+    if (typeof value === 'string' && value) {
       entries.push([key, value]);
     }
   }
   return entries;
-}
-
-export async function exportAuditCsv(formData: FormData) {
-  'use server';
-  const staffUser = await requireStaff({ permission: 'audit.export' });
-  const parsed = FilterSchema.safeParse(Object.fromEntries(formData.entries()));
-  const filters: FilterValues = parsed.success ? parsed.data : { page: 1 };
-  const events = await fetchExportEvents(filters);
-  await trackExport(events, staffUser.analyticsId, 'csv');
-
-  return new Response(toCsv(events), {
-    headers: {
-      'Content-Type': 'text/csv',
-      'Content-Disposition': `attachment; filename="${buildFileName('audit-events', 'csv')}"`
-    }
-  });
-}
-
-export async function exportAuditJson(formData: FormData) {
-  'use server';
-  const staffUser = await requireStaff({ permission: 'audit.export' });
-  const parsed = FilterSchema.safeParse(Object.fromEntries(formData.entries()));
-  const filters: FilterValues = parsed.success ? parsed.data : { page: 1 };
-  const events = await fetchExportEvents(filters);
-  await trackExport(events, staffUser.analyticsId, 'json');
-
-  return new Response(toJson(events), {
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Disposition': `attachment; filename="${buildFileName('audit-events', 'json')}"`
-    }
-  });
 }
 
 export default async function AuditEventsPage({
@@ -293,13 +179,13 @@ export default async function AuditEventsPage({
           </div>
         </div>
         <div className="export-buttons">
-          <form action={exportAuditCsv}>
+          <form action={exportAuditCsvAction}>
             {buildFormHiddenFields(filters).map(([name, value]) => (
               <input key={`csv-${name}`} type="hidden" name={name} value={value} />
             ))}
             <button type="submit" className="button secondary">Export CSV</button>
           </form>
-          <form action={exportAuditJson}>
+          <form action={exportAuditJsonAction}>
             {buildFormHiddenFields(filters).map(([name, value]) => (
               <input key={`json-${name}`} type="hidden" name={name} value={value} />
             ))}

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
-import { requireStaff } from '../../../../lib/auth';
-import { getAnalyticsClient } from '../../../../lib/analytics';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { requireStaff } from '../../../../../lib/auth';
+import { getAnalyticsClient } from '../../../../../lib/analytics';
+import type { DualControlRequestRow } from '../types';
 
 const ApproveSchema = z.object({
   id: z.string().uuid()
@@ -19,11 +20,13 @@ export async function POST(request: Request) {
   const staffUser = await requireStaff();
   const supabase = createSupabaseServiceRoleClient();
 
-  const { data: existing, error: fetchError } = await supabase
-    .from('staff_dual_control_requests')
+  const { data: fetchData, error: fetchError } = await (supabase
+    .from('staff_dual_control_requests') as any)
     .select('*')
     .eq('id', parsed.data.id)
     .maybeSingle();
+
+  const existing = fetchData as DualControlRequestRow | null;
 
   if (fetchError) {
     console.error('Failed to load dual-control request', fetchError);
@@ -42,16 +45,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Cannot approve request in status ${existing.status}` }, { status: 409 });
   }
 
-  const { data, error } = await supabase
-    .from('staff_dual_control_requests')
+  const { data: updateData, error } = await (supabase
+    .from('staff_dual_control_requests') as any)
     .update({
       approved_by: staffUser.id,
       status: 'approved',
       approved_at: new Date().toISOString()
-    })
+    } as Partial<DualControlRequestRow>)
     .eq('id', parsed.data.id)
     .select()
     .maybeSingle();
+
+  const updatedRequest = updateData as DualControlRequestRow | null;
 
   if (error) {
     console.error('Failed to approve dual-control request', error);
@@ -66,5 +71,5 @@ export async function POST(request: Request) {
     env: process.env.NODE_ENV ?? 'development'
   });
 
-  return NextResponse.json({ request: data });
+  return NextResponse.json({ request: updatedRequest });
 }

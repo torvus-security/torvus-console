@@ -38,7 +38,7 @@ export const ROLE_PERMISSIONS: Record<RoleKey, PermissionKey[]> = {
   ]
 };
 
-const permissionCache = new WeakMap<object, Set<PermissionKey>>();
+let permissionCache = new WeakMap<object, Set<PermissionKey>>();
 
 export function expandPermissionsForRoles(roles: RoleKey[]): PermissionKey[] {
   const permissions = new Set<PermissionKey>();
@@ -72,5 +72,5 @@ export function assertPermission(subject: StaffSubject | PermissionKey[], permis
 }
 
 export function resetPermissionCache() {
-  permissionCache.clear();
+  permissionCache = new WeakMap();
 }

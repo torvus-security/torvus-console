@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
-import { requireStaff } from '../../../../lib/auth';
-import { getAnalyticsClient } from '../../../../lib/analytics';
-import type { PermissionKey } from '../../../../lib/rbac';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { requireStaff } from '../../../../../lib/auth';
+import { getAnalyticsClient } from '../../../../../lib/analytics';
+import type { PermissionKey } from '../../../../../lib/rbac';
+import type { DualControlRequestRow } from '../types';
 
 const RequestSchema = z.object({
   actionKey: z.string().min(3).max(128),
@@ -33,8 +34,8 @@ export async function POST(request: Request) {
   }
 
   const supabase = createSupabaseServiceRoleClient();
-  const { data, error } = await supabase
-    .from('staff_dual_control_requests')
+  const { data: upsertedData, error } = await (supabase
+    .from('staff_dual_control_requests') as any)
     .upsert(
       {
         action_key: parsed.data.actionKey,
@@ -42,11 +43,13 @@ export async function POST(request: Request) {
         correlation_id: parsed.data.correlationId,
         requested_by: staffUser.id,
         status: 'requested'
-      },
+      } as Partial<DualControlRequestRow>,
       { onConflict: 'action_key,correlation_id' }
     )
     .select()
     .maybeSingle();
+
+  const upsertedRequest = upsertedData as DualControlRequestRow | null;
 
   if (error) {
     console.error('Failed to create dual-control request', error);
@@ -61,5 +64,5 @@ export async function POST(request: Request) {
     env: process.env.NODE_ENV ?? 'development'
   });
 
-  return NextResponse.json({ request: data });
+  return NextResponse.json({ request: upsertedRequest });
 }

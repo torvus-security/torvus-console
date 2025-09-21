@@ -1,12 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-
-export type SimulationResultState = {
-  ok: boolean;
-  message: string;
-  correlationId?: string;
-};
+import type { SimulationResultState } from './types';
 
 const INITIAL_STATE: SimulationResultState = {
   ok: false,

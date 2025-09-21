@@ -126,8 +126,9 @@ export function buildReportToHeader(): string {
 
 function encodeBase64(bytes: ArrayBuffer | Uint8Array): string {
   const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(buffer).toString('base64');
+  const nodeBuffer: typeof Buffer | undefined = (globalThis as any).Buffer;
+  if (nodeBuffer) {
+    return nodeBuffer.from(buffer).toString('base64');
   }
 
   let binary = '';
@@ -139,5 +140,9 @@ function encodeBase64(bytes: ArrayBuffer | Uint8Array): string {
     return btoa(binary);
   }
 
-  return Buffer.from(binary, 'binary').toString('base64');
+  if (nodeBuffer) {
+    return nodeBuffer.from(binary, 'binary').toString('base64');
+  }
+
+  throw new Error('Base64 encoding not supported in this environment.');
 }

@@ -49,11 +49,20 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   }
 
   const supabase = createSupabaseServiceRoleClient();
-  const { data: staffRecord, error: staffError } = await supabase
-    .from('staff_users')
+  const { data: staffRecordData, error: staffError } = await (supabase
+    .from('staff_users') as any)
     .select('user_id, email, display_name, passkey_enrolled')
     .eq('user_id', sessionUser.id)
     .maybeSingle();
+
+  const staffRecord = staffRecordData as
+    | {
+        user_id: string;
+        email: string;
+        display_name: string;
+        passkey_enrolled: boolean;
+      }
+    | null;
 
   if (staffError) {
     console.error('Error loading staff user', staffError);
@@ -64,10 +73,12 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     return null;
   }
 
-  const { data: roleMemberships, error: roleMembershipError } = await supabase
-    .from('staff_role_members')
+  const { data: roleMembershipRows, error: roleMembershipError } = await (supabase
+    .from('staff_role_members') as any)
     .select('role_id')
     .eq('user_id', sessionUser.id);
+
+  const roleMemberships = roleMembershipRows as Array<{ role_id: string }> | null;
 
   if (roleMembershipError) {
     console.error('Error loading staff roles', roleMembershipError);
@@ -79,10 +90,12 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   const permissionsSet = new Set<PermissionKey>();
 
   if (roleIds.length) {
-    const { data: roleRows, error: roleError } = await supabase
-      .from('staff_roles')
+    const { data: roleRowsData, error: roleError } = await (supabase
+      .from('staff_roles') as any)
       .select('id, name')
       .in('id', roleIds);
+
+    const roleRows = roleRowsData as Array<{ id: string; name: string }> | null;
 
     if (roleError) {
       console.error('Error loading staff role names', roleError);
@@ -91,10 +104,12 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
 
     roles = roleRows?.map((role) => role.name) ?? [];
 
-    const { data: permissionRows, error: permissionError } = await supabase
-      .from('staff_role_permissions')
+    const { data: permissionRowsData, error: permissionError } = await (supabase
+      .from('staff_role_permissions') as any)
       .select('permission_key, role_id')
       .in('role_id', roleIds);
+
+    const permissionRows = permissionRowsData as Array<{ permission_key: string; role_id: string }> | null;
 
     if (permissionError) {
       console.error('Error loading staff permissions', permissionError);

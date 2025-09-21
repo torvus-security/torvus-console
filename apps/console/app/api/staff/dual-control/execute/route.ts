@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
-import { requireStaff } from '../../../../lib/auth';
-import { getAnalyticsClient } from '../../../../lib/analytics';
-import type { PermissionKey } from '../../../../lib/rbac';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { requireStaff } from '../../../../../lib/auth';
+import { getAnalyticsClient } from '../../../../../lib/analytics';
+import type { PermissionKey } from '../../../../../lib/rbac';
+import type { DualControlRequestRow } from '../types';
 
 const ExecuteSchema = z.object({
   id: z.string().uuid()
@@ -33,11 +34,13 @@ export async function POST(request: Request) {
   const staffUser = await requireStaff();
   const supabase = createSupabaseServiceRoleClient();
 
-  const { data: existing, error: fetchError } = await supabase
-    .from('staff_dual_control_requests')
+  const { data: fetchData, error: fetchError } = await (supabase
+    .from('staff_dual_control_requests') as any)
     .select('*')
     .eq('id', parsed.data.id)
     .maybeSingle();
+
+  const existing = fetchData as DualControlRequestRow | null;
 
   if (fetchError) {
     console.error('Failed to fetch dual-control request', fetchError);
@@ -71,15 +74,17 @@ export async function POST(request: Request) {
 
   await performExecutionStub(existing.action_key, existing.payload ?? {});
 
-  const { data, error } = await supabase
-    .from('staff_dual_control_requests')
+  const { data: updateData, error } = await (supabase
+    .from('staff_dual_control_requests') as any)
     .update({
       status: 'executed',
       executed_at: new Date().toISOString()
-    })
+    } as Partial<DualControlRequestRow>)
     .eq('id', parsed.data.id)
     .select()
     .maybeSingle();
+
+  const updatedRequest = updateData as DualControlRequestRow | null;
 
   if (error) {
     console.error('Failed to mark execution', error);
@@ -94,5 +99,5 @@ export async function POST(request: Request) {
     env: process.env.NODE_ENV ?? 'development'
   });
 
-  return NextResponse.json({ request: data });
+  return NextResponse.json({ request: updatedRequest });
 }

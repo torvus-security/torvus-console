@@ -1,11 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-
-export type EnrollmentState = {
-  ok: boolean;
-  message: string;
-};
+import type { EnrollmentState } from './types';
 
 const INITIAL_STATE: EnrollmentState = {
   ok: false,

@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "build": "pnpm build:console",
     "dev:console": "pnpm --filter @torvus/console dev",
     "build:console": "pnpm --filter @torvus/console build",
     "start:console": "pnpm --filter @torvus/console start",
