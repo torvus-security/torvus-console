@@ -1,4 +1,4 @@
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import { createSupabaseServiceRoleClient } from '../lib/supabase';
 import { logAudit, type RequestLike } from './audit';
 import { sendEvent } from './notify';
@@ -12,10 +12,13 @@ export type IntakeIntegrationRow = {
   kind: IntakeIntegrationKind;
   name: string;
   secret_hash: string;
+  secret_ciphertext?: string | null;
   enabled: boolean;
   created_at: string | null;
   last_seen_at: string | null;
 };
+
+export type IntakeIntegrationSecretRow = IntakeIntegrationRow & { secret_ciphertext: string };
 
 export type IntakeEventRow = {
   id: string;
@@ -40,6 +43,104 @@ type InvestigationSummary = {
   link: string | null;
   tags: string[];
 };
+
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const ENCRYPTION_IV_LENGTH = 12;
+const ENCRYPTION_TAG_LENGTH = 16;
+
+let cachedEncryptionKey: Buffer | null = null;
+
+function formatBytea(buffer: Buffer): string {
+  return `\\x${buffer.toString('hex')}`;
+}
+
+function normaliseEncryptionKey(raw: string): Buffer {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return Buffer.alloc(0);
+  }
+
+  if (trimmed.startsWith('base64:')) {
+    return Buffer.from(trimmed.slice(7), 'base64');
+  }
+
+  if (trimmed.startsWith('hex:')) {
+    return Buffer.from(trimmed.slice(4), 'hex');
+  }
+
+  if (/^[0-9a-fA-F]{64}$/.test(trimmed)) {
+    return Buffer.from(trimmed, 'hex');
+  }
+
+  if (/^[A-Za-z0-9+/=]+$/.test(trimmed) && trimmed.length >= 44) {
+    try {
+      return Buffer.from(trimmed, 'base64');
+    } catch {
+      // fall through to utf8 fallback
+    }
+  }
+
+  return Buffer.from(trimmed, 'utf8');
+}
+
+function resolveEncryptionKey(): Buffer {
+  if (cachedEncryptionKey) {
+    return cachedEncryptionKey;
+  }
+
+  let raw = process.env.TORVUS_INTAKE_SECRET_KEY ?? process.env.TORVUS_SECRET_ENCRYPTION_KEY;
+  if (!raw || !raw.trim()) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[intake] TORVUS_INTAKE_SECRET_KEY not set; using development fallback key');
+      raw = 'torvus-intake-secret-key-32-byte';
+    } else {
+      throw new Error('[intake] TORVUS_INTAKE_SECRET_KEY is not configured');
+    }
+  }
+
+  const key = normaliseEncryptionKey(raw);
+  if (key.length !== 32) {
+    throw new Error(`[intake] TORVUS_INTAKE_SECRET_KEY must be 32 bytes, received ${key.length}`);
+  }
+
+  cachedEncryptionKey = key;
+  return key;
+}
+
+function encryptSecret(secret: string): string {
+  const key = resolveEncryptionKey();
+  const iv = randomBytes(ENCRYPTION_IV_LENGTH);
+  const cipher = createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+  const ciphertext = Buffer.concat([cipher.update(secret, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  const payload = Buffer.concat([iv, authTag, ciphertext]);
+  return formatBytea(payload);
+}
+
+function decryptSecretPayload(ciphertextHex: string): string {
+  const payload = toHexBuffer(ciphertextHex);
+  if (payload.length <= ENCRYPTION_IV_LENGTH + ENCRYPTION_TAG_LENGTH) {
+    throw new Error('invalid intake secret payload');
+  }
+
+  const key = resolveEncryptionKey();
+  const iv = payload.subarray(0, ENCRYPTION_IV_LENGTH);
+  const authTag = payload.subarray(ENCRYPTION_IV_LENGTH, ENCRYPTION_IV_LENGTH + ENCRYPTION_TAG_LENGTH);
+  const ciphertext = payload.subarray(ENCRYPTION_IV_LENGTH + ENCRYPTION_TAG_LENGTH);
+
+  const decipher = createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+  decipher.setAuthTag(authTag);
+  const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  return decrypted.toString('utf8');
+}
+
+export function decryptIntegrationSecret(row: { secret_ciphertext?: string | null }): string {
+  const payload = row.secret_ciphertext;
+  if (!payload) {
+    throw new Error('missing integration secret payload');
+  }
+  return decryptSecretPayload(payload);
+}
 
 function toHexBuffer(value: string): Buffer {
   const trimmed = value.trim().toLowerCase();
@@ -282,8 +383,8 @@ export function verifySignature(
 }
 
 function hashSecret(secret: string): string {
-  const digest = createHash('sha256').update(secret, 'utf8').digest('hex');
-  return `\\x${digest}`;
+  const digest = createHash('sha256').update(secret, 'utf8').digest();
+  return formatBytea(digest);
 }
 
 export async function upsertIntegration(
@@ -298,6 +399,7 @@ export async function upsertIntegration(
     kind,
     name: normalisedName,
     secret_hash: hashSecret(secretPlain),
+    secret_ciphertext: encryptSecret(secretPlain),
     enabled: true
   };
 
@@ -335,7 +437,7 @@ async function loadIntegrationByName(
 ): Promise<IntakeIntegrationRow | null> {
   const supabase = createSupabaseServiceRoleClient<any>();
   const { data, error } = await (supabase.from('inbound_integrations') as any)
-    .select('id, kind, name, secret_hash, enabled, created_at, last_seen_at')
+    .select('id, kind, name, secret_hash, secret_ciphertext, enabled, created_at, last_seen_at')
     .eq('kind', kind)
     .eq('name', name.trim())
     .maybeSingle();
@@ -345,7 +447,7 @@ async function loadIntegrationByName(
     throw error;
   }
 
-  return (data as IntakeIntegrationRow | null) ?? null;
+  return (data as IntakeIntegrationSecretRow | null) ?? null;
 }
 
 async function findEventByExt(
@@ -385,8 +487,8 @@ async function findEventByHash(
 }
 
 function computeDedupHash(rawBody: string): string {
-  const digest = createHash('sha256').update(rawBody, 'utf8').digest('hex');
-  return `\\x${digest}`;
+  const digest = createHash('sha256').update(rawBody, 'utf8').digest();
+  return formatBytea(digest);
 }
 
 export async function recordInbound(
@@ -755,7 +857,7 @@ export async function routeToInvestigation(
 export async function getIntegration(
   kind: IntakeIntegrationKind,
   name: string
-): Promise<IntakeIntegrationRow | null> {
+): Promise<IntakeIntegrationSecretRow | null> {
   return loadIntegrationByName(kind, name);
 }
 
@@ -804,9 +906,10 @@ export async function rotateIntegrationSecret(
 ): Promise<IntakeIntegrationRow | null> {
   const supabase = createSupabaseServiceRoleClient<any>();
   const secretHash = hashSecret(secretPlain);
+  const secretCiphertext = encryptSecret(secretPlain);
 
   const { data, error } = await (supabase.from('inbound_integrations') as any)
-    .update({ secret_hash: secretHash })
+    .update({ secret_hash: secretHash, secret_ciphertext: secretCiphertext })
     .eq('id', id)
     .select('id, kind, name, secret_hash, enabled, created_at, last_seen_at')
     .maybeSingle();

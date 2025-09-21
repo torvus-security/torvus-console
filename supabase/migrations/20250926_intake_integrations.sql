@@ -5,6 +5,7 @@ create table if not exists public.inbound_integrations (
   kind text not null check (kind in ('generic','statuspage','sentry','posthog')),
   name text not null,
   secret_hash bytea not null,
+  secret_ciphertext bytea not null,
   enabled boolean not null default true,
   created_at timestamptz not null default now(),
   last_seen_at timestamptz null,

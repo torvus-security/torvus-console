@@ -53,16 +53,15 @@ function buildCurlExample(
 
   const secretLine = `SECRET="${secret || 'your-shared-secret'}"`;
   const bodyLine = `BODY='${body}'`;
-  const secretHashLine =
-    "SECRET_HASH=$(printf '%s' \"$SECRET\" | openssl dgst -sha256 -binary | xxd -p -c 64)";
+  const secretHexLine = "SECRET_HEX=$(printf '%s' \"$SECRET\" | xxd -p -c 200)";
 
   if (kind === 'sentry') {
     const signatureLine =
-      "TIMESTAMP=$(date +%s)\nSIGNATURE=$(printf '%s' \"$TIMESTAMP.$BODY\" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$SECRET_HASH | awk '{print $2}')";
+      "TIMESTAMP=$(date +%s)\nSIGNATURE=$(printf '%s' \"$TIMESTAMP.$BODY\" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$SECRET_HEX | awk '{print $2}')";
     return [
       secretLine,
       bodyLine,
-      secretHashLine,
+      secretHexLine,
       signatureLine,
       `curl -X POST '${endpoint}' \\
   -H 'Content-Type: application/json' \\
@@ -73,12 +72,12 @@ function buildCurlExample(
   }
 
   const signatureLine =
-    "SIGNATURE=$(printf '%s' \"$BODY\" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$SECRET_HASH | awk '{print $2}')";
+    "SIGNATURE=$(printf '%s' \"$BODY\" | openssl dgst -sha256 -mac HMAC -macopt hexkey:$SECRET_HEX | awk '{print $2}')";
 
   return [
     secretLine,
     bodyLine,
-    secretHashLine,
+    secretHexLine,
     signatureLine,
     `curl -X POST '${endpoint}' \\
   -H 'Content-Type: application/json' \\

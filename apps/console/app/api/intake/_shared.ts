@@ -6,6 +6,7 @@ import {
   routeToInvestigation,
   verifySignature,
   extractVendorId,
+  decryptIntegrationSecret,
   type IntakeIntegrationKind
 } from '../../../server/intake';
 
@@ -47,7 +48,15 @@ export async function handleIntakeRequest(
   }
 
   const rawBody = await request.text();
-  if (!verifySignature(kind, rawBody, request.headers, integration.secret_hash)) {
+  let secret: string;
+  try {
+    secret = decryptIntegrationSecret(integration);
+  } catch (error) {
+    console.error('[intake] failed to decrypt integration secret', error);
+    return new Response('intake secret unavailable', { status: 500 });
+  }
+
+  if (!verifySignature(kind, rawBody, request.headers, secret)) {
     return new Response('invalid signature', { status: 401 });
   }
 
