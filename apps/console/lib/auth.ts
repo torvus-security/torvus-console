@@ -84,6 +84,46 @@ export async function getUserRolesByEmail(
   return uniqueRoles;
 }
 
+export type StaffUserRecord = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+};
+
+export async function getStaffUserByEmail(
+  email: string,
+  client: PostgrestLikeOrSupabase
+): Promise<StaffUserRecord | null> {
+  const normalisedEmail = normaliseEmail(email);
+  if (!normalisedEmail) {
+    return null;
+  }
+
+  const query = (client.from('staff_users') as any)
+    .select('user_id, email, display_name')
+    .eq('email', normalisedEmail)
+    .maybeSingle();
+
+  const { data, error } = (await query) as {
+    data: StaffUserRecord | null;
+    error: { code?: string } | null;
+  };
+
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return {
+    user_id: data.user_id,
+    email: data.email.toLowerCase(),
+    display_name: data.display_name
+  };
+}
+
 export type SessionUser = {
   id: string | null;
   email: string | null;

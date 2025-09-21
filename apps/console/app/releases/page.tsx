@@ -1,90 +1,114 @@
-import { headers } from 'next/headers';
-import { requireStaff } from '../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../lib/supabase';
-import { getAnalyticsClient } from '../../lib/analytics';
-import { SimulationForm } from './simulation-form';
-import { simulateReleaseAction } from './actions';
+import Link from 'next/link';
+import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { callReleasesApi } from './api-client';
 
-const RELEASE_QUERY_LIMIT = 20;
-
-type ReleaseDecision = {
-  id: string;
-  version: string;
-  decided_at: string;
-  decided_by: string;
-  status: string;
-  notes: string | null;
+type StaffSummary = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
 };
 
-async function loadReleaseDecisions(): Promise<ReleaseDecision[]> {
-  const supabase = createSupabaseServiceRoleClient();
-  const { data, error } = await supabase
-    .from('release_decisions')
-    .select('id, version, decided_at, decided_by, status, notes')
-    .order('decided_at', { ascending: false })
-    .limit(RELEASE_QUERY_LIMIT);
+type ReleaseRequestSummary = {
+  id: string;
+  title: string;
+  description: string | null;
+  requested_by: string;
+  status: 'pending' | 'approved' | 'rejected' | 'executed';
+  created_at: string;
+  last_decision_at: string | null;
+  approve_count: number;
+  reject_count: number;
+  requested_by_user: StaffSummary | null;
+};
 
-  if (error) {
-    console.error('Failed to load release decisions', error);
-    return [];
-  }
+type ReleasesResponse = {
+  viewer: {
+    user_id: string;
+    email: string;
+    display_name: string | null;
+    roles: string[];
+  };
+  requests: ReleaseRequestSummary[];
+};
 
-  return (data ?? []) as ReleaseDecision[];
+function formatUtc(timestamp: string) {
+  return new Date(timestamp).toISOString();
+}
+
+function StatusBadge({ status }: { status: ReleaseRequestSummary['status'] }) {
+  const className = `tag ${status}`;
+  return <span className={className}>{status}</span>;
 }
 
 export default async function ReleasesPage() {
-  const staffUser = await requireStaff({ permission: 'releases.simulate' });
-  const headerBag = headers();
-  const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
-  const releases = await loadReleaseDecisions();
+  const { status, data } = await callReleasesApi<ReleasesResponse>('/api/releases');
 
-  const analytics = getAnalyticsClient();
-  analytics.capture('staff_console_viewed', {
-    path: '/releases',
-    correlation_id: correlationId,
-    user: staffUser.analyticsId,
-    env: process.env.NODE_ENV ?? 'development'
-  });
+  if (status === 401 || status === 403 || !data) {
+    return <AccessDeniedNotice />;
+  }
+
+  const { requests } = data;
 
   return (
-    <div className="page">
-      <section className="panel" aria-labelledby="releases-heading">
+    <div className="page space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold text-white">Release requests</h1>
+        <Link
+          href="/releases/new"
+          className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400"
+        >
+          New release
+        </Link>
+      </div>
+
+      <div className="panel" aria-labelledby="release-requests-heading">
         <div className="panel__header">
-          <h1 id="releases-heading">Recent release decisions</h1>
-          <span className="tag subtle">Read only</span>
+          <h2 id="release-requests-heading">Recent requests</h2>
+          <span className="tag subtle">Latest 100</span>
         </div>
         <div className="table-wrapper">
           <table>
             <thead>
               <tr>
-                <th scope="col">Version</th>
+                <th scope="col">Title</th>
                 <th scope="col">Status</th>
-                <th scope="col">Decided at</th>
-                <th scope="col">Decided by</th>
-                <th scope="col">Notes</th>
+                <th scope="col">Approvals</th>
+                <th scope="col">Rejects</th>
+                <th scope="col">Requested by</th>
+                <th scope="col">Created at</th>
               </tr>
             </thead>
             <tbody>
-              {releases.length === 0 && (
+              {requests.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="empty">No release decisions recorded yet.</td>
+                  <td colSpan={6} className="empty">
+                    No release requests yet. Start by creating one.
+                  </td>
                 </tr>
               )}
-              {releases.map((release) => (
-                <tr key={release.id}>
-                  <td>{release.version}</td>
-                  <td>{release.status}</td>
-                  <td>{new Date(release.decided_at).toISOString()}</td>
-                  <td>{release.decided_by}</td>
-                  <td>{release.notes ?? '—'}</td>
+              {requests.map((request) => (
+                <tr key={request.id}>
+                  <td>
+                    <Link
+                      href={`/releases/${request.id}`}
+                      className="text-sm font-medium text-emerald-300 hover:text-emerald-200"
+                    >
+                      {request.title}
+                    </Link>
+                  </td>
+                  <td>
+                    <StatusBadge status={request.status} />
+                  </td>
+                  <td>{request.approve_count}</td>
+                  <td>{request.reject_count}</td>
+                  <td>{request.requested_by_user?.email ?? 'Unknown'}</td>
+                  <td>{formatUtc(request.created_at)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </section>
-
-      <SimulationForm action={simulateReleaseAction} />
+      </div>
     </div>
   );
 }
