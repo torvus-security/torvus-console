@@ -71,6 +71,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     const adminItems = [
       { href: '/admin/people', label: 'People' },
       { href: '/admin/roles', label: 'Roles' },
+      { href: '/admin/integrations', label: 'Integrations' },
       { href: '/staff', label: 'Staff' }
     ];
 

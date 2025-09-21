@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logAudit } from '../../../../../server/audit';
+import { sendEvent } from '../../../../../server/notify';
 import { getInvestigationById, type InvestigationEvent } from '../../../../../lib/data/investigations';
 import { resolveViewer, canManageInvestigations, canViewInvestigations } from '../../utils';
 
@@ -98,6 +99,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
     },
     request
   );
+
+  try {
+    await sendEvent('investigation.note', {
+      id: investigation.id,
+      title: investigation.title,
+      by: event.actor.email,
+      message,
+      created_at: event.createdAt
+    });
+  } catch (error) {
+    console.warn('[notify] failed to dispatch investigation note notification', error);
+  }
 
   return NextResponse.json({ event }, { status: 201 });
 }

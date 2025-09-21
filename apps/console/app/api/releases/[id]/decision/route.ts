@@ -7,6 +7,7 @@ import {
   type ReleaseApprovalRow,
   type StaffSummary
 } from '../../utils';
+import { sendEvent } from '../../../../../server/notify';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,6 +102,7 @@ export async function POST(request: Request, context: { params?: { id?: string |
   }
 
   let refreshedDetail;
+  let triggeredEvent: 'release.approved' | 'release.rejected' | null = null;
   try {
     refreshedDetail = await fetchReleaseDetail(supabase, id);
   } catch (error) {
@@ -140,6 +142,12 @@ export async function POST(request: Request, context: { params?: { id?: string |
       console.error('Failed to reload release detail', error);
       return new Response('failed to reload release detail', { status: 500 });
     }
+
+    if (nextStatus === 'approved') {
+      triggeredEvent = 'release.approved';
+    } else if (nextStatus === 'rejected') {
+      triggeredEvent = 'release.rejected';
+    }
   }
 
   const finalDetail = refreshedDetail;
@@ -154,6 +162,31 @@ export async function POST(request: Request, context: { params?: { id?: string |
   } catch (summaryError) {
     console.error('Failed to load decision summaries', summaryError);
     return new Response('failed to refresh release detail', { status: 500 });
+  }
+
+  if (triggeredEvent) {
+    const requestRecord = finalDetail.request!;
+    const requester = staffSummaries.get(requestRecord.requested_by) ?? null;
+    const approvedEmails = approvals
+      .filter((approval) => approval.decision === 'approve')
+      .map((approval) => staffSummaries.get(approval.approver_id)?.email ?? null)
+      .filter((email): email is string => Boolean(email));
+
+    const uniqueApproved = Array.from(
+      new Map(approvedEmails.map((email) => [email.toLowerCase(), email])).values()
+    );
+
+    try {
+      await sendEvent(triggeredEvent, {
+        id: requestRecord.id,
+        title: requestRecord.title,
+        requested_by_email: requester?.email ?? null,
+        approved_by_emails: uniqueApproved,
+        decided_at: requestRecord.last_decision_at ?? new Date().toISOString()
+      });
+    } catch (error) {
+      console.warn('[notify] failed to dispatch release notification', error);
+    }
   }
 
   const responseBody = {
