@@ -69,7 +69,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   if (hasSecurityAdminRole) {
     const adminGroup = navGroups.find((group) => group.group === 'Admin');
     const adminItems = [
-      { href: '/admin/people', label: 'Admin' },
+      { href: '/admin/people', label: 'People' },
+      { href: '/admin/roles', label: 'Roles' },
       { href: '/staff', label: 'Staff' }
     ];
 
