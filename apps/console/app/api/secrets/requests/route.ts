@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireStaff } from '../../../../lib/auth';
+import { enforceNotReadOnly, isReadOnlyError, toReadOnlyResponse } from '../../../../server/guard';
 import {
   loadSecretRequests,
   proposeCreate,
@@ -42,6 +43,15 @@ export async function POST(request: Request) {
   const staffUser = await requireStaff();
   if (!assertSecurityAdmin(staffUser.roles)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  try {
+    await enforceNotReadOnly(request, staffUser.roles, 'api.secrets.requests.create');
+  } catch (error) {
+    if (isReadOnlyError(error)) {
+      return toReadOnlyResponse(error, 'json');
+    }
+    throw error;
   }
 
   let body: unknown;
