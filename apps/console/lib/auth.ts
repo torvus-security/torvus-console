@@ -1,8 +1,8 @@
 import { cache } from 'react';
-import { headers } from 'next/headers';
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './supabase';
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
+import { getCfAccessEmail } from './auth/cfAccess';
 
 export type SessionUser = {
   id: string | null;
@@ -27,27 +27,6 @@ export class StaffAccessError extends Error {
   }
 }
 
-// Returns email from Cloudflare Access identity headers, if present.
-function getCloudflareEmailFromHeaders(): string | null {
-  const h = headers();
-  // Primary header set by Cloudflare Access:
-  const candidates = [
-    'cf-access-authenticated-user-email',
-    // Secondary fallbacks seen in some setups / proxies (best-effort):
-    'x-authenticated-user-email',
-    'x-auth-email',
-    'x-forwarded-email'
-  ];
-
-  for (const name of candidates) {
-    const v = h.get(name);
-    if (v && typeof v === 'string' && v.trim()) {
-      return v.trim().toLowerCase();
-    }
-  }
-  return null;
-}
-
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
@@ -64,7 +43,7 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 
   // Fallback: trust Cloudflare Access (already authenticated before reaching us)
-  const cfEmail = getCloudflareEmailFromHeaders();
+  const cfEmail = getCfAccessEmail();
   if (cfEmail) {
     // No Supabase id yet; resolve to a staff row by email in getStaffUser()
     return { id: null, email: cfEmail };

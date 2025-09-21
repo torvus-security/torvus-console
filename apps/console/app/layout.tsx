@@ -9,6 +9,8 @@ import '../styles/tokens.css';
 import '../styles/globals.css';
 import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
+import { IdentityPill } from '../components/IdentityPill';
+import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
 
 export const metadata: Metadata = {
   title: 'Torvus Console',
@@ -32,10 +34,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <main className="unauthorised">
-            <h1>Access denied</h1>
-            <p>Torvus Console is restricted to enrolled staff. Contact Security Operations.</p>
-          </main>
+          <AccessDeniedNotice />
         </body>
       </html>
     );
@@ -98,7 +97,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <header className="topbar">
             <div className="breadcrumbs">{pathname === '/' ? 'Overview' : pathname.replace('/', '').replace('-', ' ')}</div>
             <div className="topbar__meta" data-nonce={nonce}>
-              <span className="tag">{staffUser.roles.join(', ') || 'staff'}</span>
+              <IdentityPill displayName={staffUser.displayName} email={staffUser.email} roles={staffUser.roles} />
             </div>
           </header>
           <main className="main" data-testid="main-content">
