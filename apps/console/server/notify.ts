@@ -1,4 +1,5 @@
 import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { getDecrypted } from './secrets';
 
 type WebhookKind = 'slack' | 'teams';
 
@@ -7,6 +8,7 @@ type WebhookRow = {
   kind: WebhookKind;
   url: string;
   enabled: boolean;
+  secret_key: string | null;
 };
 
 type NotificationPrefRow = {
@@ -30,11 +32,50 @@ function formatPayload(payload: Record<string, unknown>): string {
   }
 }
 
+function parseSecretReference(reference: string): { key: string; env: string } {
+  const trimmed = reference.trim();
+  if (!trimmed) {
+    throw new Error('empty secret reference');
+  }
+
+  const atIndex = trimmed.lastIndexOf('@');
+  if (atIndex > 0) {
+    const key = trimmed.slice(0, atIndex).trim();
+    const env = trimmed.slice(atIndex + 1).trim();
+    return { key, env: env || 'prod' };
+  }
+
+  return { key: trimmed, env: 'prod' };
+}
+
+async function resolveWebhookUrl(webhook: WebhookRow): Promise<string | null> {
+  if (webhook.secret_key) {
+    try {
+      const ref = parseSecretReference(webhook.secret_key);
+      return await getDecrypted(ref.key, ref.env, { skipAudit: true });
+    } catch (error) {
+      console.warn('[notify] failed to resolve webhook secret', {
+        webhook_id: webhook.id,
+        error
+      });
+      return null;
+    }
+  }
+
+  return webhook.url;
+}
+
 async function dispatchWebhook(
   webhook: WebhookRow,
   event: string,
   prettyPayload: string
 ): Promise<boolean> {
+  const resolvedUrl = await resolveWebhookUrl(webhook);
+  if (!resolvedUrl) {
+    console.warn('[notify] no webhook URL available', { webhook_id: webhook.id });
+    return false;
+  }
+
   const body =
     webhook.kind === 'slack'
       ? {
@@ -45,7 +86,7 @@ async function dispatchWebhook(
         };
 
   try {
-    const response = await fetch(webhook.url, {
+    const response = await fetch(resolvedUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -98,7 +139,7 @@ async function loadEnabledWebhooks(): Promise<WebhookRow[]> {
 
   try {
     const { data, error } = await (supabase.from('outbound_webhooks') as any)
-      .select('id, kind, url, enabled')
+      .select('id, kind, url, enabled, secret_key')
       .eq('enabled', true);
 
     if (error) {
@@ -106,12 +147,14 @@ async function loadEnabledWebhooks(): Promise<WebhookRow[]> {
       return [];
     }
 
-    const rows = (data as Array<{ id: string; kind: WebhookKind; url: string; enabled: boolean }> | null) ?? [];
+    const rows =
+      (data as Array<{ id: string; kind: WebhookKind; url: string; enabled: boolean; secret_key: string | null }> | null) ?? [];
     return rows.map((row) => ({
       id: row.id,
       kind: row.kind,
       url: row.url,
-      enabled: Boolean(row.enabled)
+      enabled: Boolean(row.enabled),
+      secret_key: row.secret_key ?? null
     }));
   } catch (error) {
     console.warn('[notify] error loading webhooks', error);
@@ -136,10 +179,10 @@ export async function sendEvent(event: string, payload: Record<string, unknown>)
 }
 
 export async function sendWebhookPreview(
-  webhook: { id: string; kind: WebhookKind; url: string },
+  webhook: { id: string; kind: WebhookKind; url: string; secret_key?: string | null },
   event: string,
   payload: Record<string, unknown>
 ): Promise<boolean> {
   const pretty = formatPayload(payload);
-  return dispatchWebhook({ ...webhook, enabled: true }, event, pretty);
+  return dispatchWebhook({ ...webhook, enabled: true, secret_key: webhook.secret_key ?? null }, event, pretty);
 }

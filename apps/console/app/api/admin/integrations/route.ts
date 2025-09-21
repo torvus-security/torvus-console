@@ -10,6 +10,7 @@ type WebhookRow = {
   enabled: boolean;
   description: string | null;
   created_at: string | null;
+  secret_key: string | null;
 };
 
 type PrefRow = {
@@ -24,7 +25,8 @@ function sanitiseWebhook(row: WebhookRow) {
     kind: row.kind,
     enabled: Boolean(row.enabled),
     description: row.description,
-    maskedUrl: maskWebhookUrl(row.url),
+    maskedUrl: maskWebhookUrl(row.url, row.secret_key ?? null),
+    secretKey: row.secret_key,
     createdAt: row.created_at
   };
 }
@@ -46,7 +48,7 @@ export async function GET(request: Request) {
   const { supabase } = resolution.context;
 
   const { data: webhookRows, error: webhookError } = await (supabase.from('outbound_webhooks') as any)
-    .select('id, kind, url, enabled, description, created_at')
+    .select('id, kind, url, enabled, description, created_at, secret_key')
     .order('created_at', { ascending: true });
 
   if (webhookError) {

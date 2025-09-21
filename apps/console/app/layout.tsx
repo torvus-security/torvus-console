@@ -73,6 +73,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       { href: '/admin/roles', label: 'Roles' },
       { href: '/admin/integrations', label: 'Integrations' },
       { href: '/admin/integrations/intake', label: 'Intake Webhooks' },
+      { href: '/admin/secrets', label: 'Secrets' },
+      { href: '/admin/secrets/approvals', label: 'Secret Approvals' },
       { href: '/staff', label: 'Staff' }
     ];
 

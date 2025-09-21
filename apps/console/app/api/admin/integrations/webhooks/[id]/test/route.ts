@@ -9,6 +9,7 @@ type WebhookRow = {
   id: string;
   kind: 'slack' | 'teams';
   url: string;
+  secret_key: string | null;
 };
 
 export async function POST(
@@ -28,7 +29,7 @@ export async function POST(
   const { supabase } = resolution.context;
 
   const { data, error } = await (supabase.from('outbound_webhooks') as any)
-    .select('id, kind, url')
+    .select('id, kind, url, secret_key')
     .eq('id', id)
     .maybeSingle();
 
@@ -43,10 +44,14 @@ export async function POST(
 
   const webhook = data as WebhookRow;
 
-  const success = await sendWebhookPreview(webhook, 'torvus.test', {
-    message: 'Test notification from Torvus Console',
-    triggered_at: new Date().toISOString()
-  });
+  const success = await sendWebhookPreview(
+    webhook,
+    'torvus.test',
+    {
+      message: 'Test notification from Torvus Console',
+      triggered_at: new Date().toISOString()
+    }
+  );
 
   if (!success) {
     return new Response('failed to deliver webhook', { status: 502 });

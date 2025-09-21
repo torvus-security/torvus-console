@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireSecurityAdmin, normaliseKind, normaliseDescription, isValidUrl, maskWebhookUrl } from '../_helpers';
+import {
+  requireSecurityAdmin,
+  normaliseKind,
+  normaliseDescription,
+  maskWebhookUrl
+} from '../_helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +13,7 @@ type InsertPayload = {
   url: string;
   enabled?: boolean;
   description?: string | null;
+  secret_key?: string | null;
 };
 
 type WebhookRow = {
@@ -17,6 +23,7 @@ type WebhookRow = {
   enabled: boolean;
   description: string | null;
   created_at: string | null;
+  secret_key: string | null;
 };
 
 function sanitise(row: WebhookRow) {
@@ -25,7 +32,8 @@ function sanitise(row: WebhookRow) {
     kind: row.kind,
     enabled: Boolean(row.enabled),
     description: row.description,
-    maskedUrl: maskWebhookUrl(row.url),
+    maskedUrl: maskWebhookUrl(row.url, row.secret_key ?? null),
+    secretKey: row.secret_key,
     createdAt: row.created_at
   };
 }
@@ -44,29 +52,33 @@ export async function POST(request: Request) {
   }
 
   const kind = normaliseKind((body as Record<string, unknown> | null)?.kind);
-  const url = typeof (body as Record<string, unknown> | null)?.url === 'string' ? (body as any).url.trim() : '';
+  const secretKey =
+    typeof (body as Record<string, unknown> | null)?.secretKey === 'string'
+      ? (body as any).secretKey.trim()
+      : '';
   const description = normaliseDescription((body as Record<string, unknown> | null)?.description);
 
   if (!kind) {
     return new Response('invalid kind', { status: 400 });
   }
 
-  if (!url || !isValidUrl(url)) {
-    return new Response('invalid url', { status: 400 });
+  if (!secretKey) {
+    return new Response('secret key required', { status: 400 });
   }
 
   const payload: InsertPayload = {
     kind,
-    url,
+    url: `secret://${secretKey}`,
     enabled: true,
-    description
+    description,
+    secret_key: secretKey
   };
 
   const { supabase } = resolution.context;
 
   const { data, error } = await (supabase.from('outbound_webhooks') as any)
     .insert(payload)
-    .select('id, kind, url, enabled, description, created_at')
+    .select('id, kind, url, enabled, description, created_at, secret_key')
     .single();
 
   if (error) {
