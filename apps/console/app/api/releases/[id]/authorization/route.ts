@@ -95,13 +95,13 @@ export async function GET(
     return new Response('failed to load approval summaries', { status: 500 });
   }
 
-  const approvedBy = Array.from(
-    new Set(
-      approvingDecisions
-        .map((approval) => approvingStaff.get(approval.approver_id)?.email)
-        .filter((email): email is string => Boolean(email))
-    )
-  ).sort((a, b) => a.localeCompare(b));
+  const approvedEmails = approvingDecisions
+    .map((approval) => approvingStaff.get(approval.approver_id)?.email)
+    .filter((email): email is string => Boolean(email));
+
+  const approvedBy = Array.from(new Set<string>(approvedEmails)).sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   const issuedAt = new Date();
   const expiresAt = new Date(issuedAt.getTime() + FIFTEEN_MINUTES_IN_MS);
