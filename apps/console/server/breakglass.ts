@@ -273,7 +273,7 @@ export async function revokeRequest(params: {
   const supabase = createSupabaseServiceRoleClient<any>();
   const { data: requestData, error: requestError } = await (supabase
     .from('elevation_requests') as any)
-    .select('id, target_user_id, roles, window_minutes, reason, ticket_url, status')
+    .select('id, target_user_id, roles, window_minutes, reason, ticket_url, status, executed_at')
     .eq('id', requestId)
     .maybeSingle();
 
@@ -281,7 +281,7 @@ export async function revokeRequest(params: {
     throw new Error(`Failed to load request: ${requestError.message ?? 'unknown error'}`);
   }
 
-  const request = requestData as (Pick<BreakGlassRequestRow, 'id' | 'target_user_id' | 'roles' | 'window_minutes' | 'reason' | 'ticket_url' | 'status'>) | null;
+  const request = requestData as (Pick<BreakGlassRequestRow, 'id' | 'target_user_id' | 'roles' | 'window_minutes' | 'reason' | 'ticket_url' | 'status' | 'executed_at'>) | null;
   if (!request) {
     return { revoked: false };
   }
@@ -306,6 +306,104 @@ export async function revokeRequest(params: {
   }
 
   const updated = updatedRows[0] as Pick<BreakGlassRequestRow, 'target_user_id' | 'roles' | 'window_minutes' | 'reason' | 'ticket_url'>;
+
+  const roleNames = Array.isArray(updated.roles)
+    ? updated.roles.map((role) => (typeof role === 'string' ? role.trim() : '')).filter(Boolean)
+    : [];
+
+  if (roleNames.length > 0) {
+    const { data: roleRows, error: roleError } = await (supabase.from('staff_roles') as any)
+      .select('id, name')
+      .in('name', roleNames);
+
+    if (roleError) {
+      throw new Error(`Failed to resolve role identifiers for revoke: ${roleError.message ?? 'unknown error'}`);
+    }
+
+    const roleIds = new Set<string>();
+    for (const row of (roleRows as Array<{ id: string; name: string }> | null) ?? []) {
+      if (row?.id) {
+        roleIds.add(row.id);
+      }
+    }
+
+    if (roleIds.size > 0) {
+      const now = new Date();
+      const nowIso = now.toISOString();
+      const windowMinutes = Number.isFinite(updated.window_minutes) && updated.window_minutes > 0
+        ? updated.window_minutes
+        : 60;
+      const threshold = new Date(now.getTime() - windowMinutes * 60_000);
+
+      const { data: membershipRows, error: membershipError } = await (supabase
+        .from('staff_role_members') as any)
+        .select('id, role_id, valid_from, valid_to, justification, ticket_url, granted_via')
+        .eq('user_id', updated.target_user_id)
+        .in('role_id', Array.from(roleIds))
+        .eq('granted_via', 'break_glass');
+
+      if (membershipError) {
+        throw new Error(`Failed to inspect temporary roles for revoke: ${membershipError.message ?? 'unknown error'}`);
+      }
+
+      const rows = (membershipRows as Array<{
+        id: string;
+        role_id: string;
+        valid_from: string | null;
+        valid_to: string | null;
+        justification: string | null;
+        ticket_url: string | null;
+        granted_via: string | null;
+      }> | null) ?? [];
+
+      const updateIds: string[] = [];
+      for (const membership of rows) {
+        if (!membership?.id) {
+          continue;
+        }
+
+        if (membership.granted_via !== 'break_glass') {
+          continue;
+        }
+
+        if (membership.justification !== (updated.reason ?? null)) {
+          continue;
+        }
+
+        const ticketMatches = (membership.ticket_url ?? null) === (updated.ticket_url ?? null);
+        if (!ticketMatches) {
+          continue;
+        }
+
+        if (membership.valid_to) {
+          const validTo = new Date(membership.valid_to);
+          if (validTo <= now) {
+            continue;
+          }
+        }
+
+        if (membership.valid_from) {
+          const validFrom = new Date(membership.valid_from);
+          if (validFrom < threshold) {
+            continue;
+          }
+        }
+
+        updateIds.push(membership.id);
+      }
+
+      if (updateIds.length > 0) {
+        const { error: expireError } = await (supabase.from('staff_role_members') as any)
+          .update({ valid_to: nowIso })
+          .in('id', updateIds);
+
+        if (expireError) {
+          throw new Error(`Failed to expire temporary roles: ${expireError.message ?? 'unknown error'}`);
+        }
+      }
+    }
+  }
+
   await auditEvent('elevation.revoked', updated.target_user_id, buildAuditMeta(updated));
   return { revoked: true };
 }

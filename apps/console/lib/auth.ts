@@ -50,6 +50,8 @@ export async function getUserRolesByEmail(
 
   type RoleMembershipRow = {
     staff_role_members?: Array<{
+      valid_to: string | null;
+      granted_via: string | null;
       staff_roles?: {
         name: string | null;
       } | null;
@@ -59,6 +61,8 @@ export async function getUserRolesByEmail(
   const query = (client.from('staff_users') as any)
     .select(
       `staff_role_members:staff_role_members (
+        valid_to,
+        granted_via,
         staff_roles:staff_roles ( name )
       )`
     )
@@ -75,7 +79,21 @@ export async function getUserRolesByEmail(
   }
 
   const memberships = data?.staff_role_members ?? [];
+  const now = new Date();
   const roles = memberships
+    .filter((membership) => {
+      const grantedVia = membership?.granted_via ?? 'normal';
+      if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
+        return false;
+      }
+
+      const validTo = membership?.valid_to ? new Date(membership.valid_to) : null;
+      if (validTo && validTo <= now) {
+        return false;
+      }
+
+      return true;
+    })
     .map((membership) => membership?.staff_roles?.name?.trim() ?? null)
     .filter((role): role is string => Boolean(role));
 
@@ -232,17 +250,36 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
 
   const { data: roleMembershipRows, error: roleMembershipError } = await (supabase
     .from('staff_role_members') as any)
-    .select('role_id')
+    .select('role_id, valid_to, granted_via')
     .eq('user_id', userIdForQuery);
 
-  const roleMemberships = roleMembershipRows as Array<{ role_id: string }> | null;
+  const roleMemberships = roleMembershipRows as Array<{
+    role_id: string;
+    valid_to: string | null;
+    granted_via: string | null;
+  }> | null;
 
   if (roleMembershipError) {
     console.error('Error loading staff roles', roleMembershipError);
     throw new StaffAccessError('Unable to load staff roles', 503);
   }
 
-  const roleIds = roleMemberships?.map((membership) => membership.role_id) ?? [];
+  const membershipCheckTime = new Date();
+  const activeMemberships = (roleMemberships ?? []).filter((membership) => {
+    const grantedVia = membership.granted_via ?? 'normal';
+    if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
+      return false;
+    }
+
+    if (!membership.valid_to) {
+      return true;
+    }
+
+    const validTo = new Date(membership.valid_to);
+    return validTo > membershipCheckTime;
+  });
+
+  const roleIds = activeMemberships.map((membership) => membership.role_id);
   let roles: string[] = [];
   const permissionsSet = new Set<PermissionKey>();
 

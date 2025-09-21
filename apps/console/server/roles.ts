@@ -42,32 +42,44 @@ export async function hasRoleAt(userId: string, roleName: string, at: Date = new
 
   const supabase = createSupabaseServiceRoleClient<any>();
   const { data, error } = await (supabase.from('staff_role_members') as any)
-    .select('valid_from, valid_to, staff_roles!inner(name)')
+    .select('valid_from, valid_to, granted_via, staff_roles!inner(name)')
     .eq('user_id', userId)
     .eq('staff_roles.name', roleName)
-    .maybeSingle();
+    .in('granted_via', ['normal', 'break_glass']);
 
   if (error) {
     throw new Error(`Failed checking role membership: ${error.message ?? 'unknown error'}`);
   }
 
-  const membership = data as { valid_from: string | null; valid_to: string | null } | null;
-  if (!membership) {
-    return false;
-  }
+  const rows = (data as Array<{
+    valid_from: string | null;
+    valid_to: string | null;
+    granted_via: string | null;
+  }> | null) ?? [];
 
   const atTime = at instanceof Date ? at : new Date(at);
-  const validFrom = membership.valid_from ? new Date(membership.valid_from) : null;
-  if (validFrom && validFrom > atTime) {
-    return false;
+
+  for (const membership of rows) {
+    if (!membership) {
+      continue;
+    }
+
+    const validFrom = membership.valid_from ? new Date(membership.valid_from) : null;
+    if (validFrom && validFrom > atTime) {
+      continue;
+    }
+
+    if (!membership.valid_to) {
+      return true;
+    }
+
+    const validTo = new Date(membership.valid_to);
+    if (validTo > atTime) {
+      return true;
+    }
   }
 
-  if (!membership.valid_to) {
-    return true;
-  }
-
-  const validTo = new Date(membership.valid_to);
-  return validTo > atTime;
+  return false;
 }
 
 export async function grantTemporaryRoles(params: {
