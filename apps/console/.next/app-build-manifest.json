@@ -1,55 +1,15 @@
 {
   "pages": {
-    "/_not-found/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/_not-found/page-70051c09f854de56.js"
-    ],
     "/layout": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/css/92c1a678479f697b.css",
-      "static/chunks/680-a07bf3f61f25efbe.js",
-      "static/chunks/app/layout-755966d6c15541f2.js"
-    ],
-    "/audit-events/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/audit-events/page-c4d58c5516cbcfb3.js"
-    ],
-    "/enroll-passkey/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/enroll-passkey/page-0494efab02649413.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
     ],
     "/overview/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/overview/page-7eb362871a4565c8.js"
-    ],
-    "/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/page-a93ead0b2112a212.js"
-    ],
-    "/releases/page": [
-      "static/chunks/webpack-c4bd49262be15817.js",
-      "static/chunks/cbb1235c-83c4c31baf081c3e.js",
-      "static/chunks/17-8572825a75265041.js",
-      "static/chunks/main-app-ceef61587182fb6b.js",
-      "static/chunks/app/releases/page-81803a38d9c64dde.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/overview/page.js"
     ]
   }
 }
