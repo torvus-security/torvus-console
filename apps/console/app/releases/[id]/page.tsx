@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { callReleasesApi } from '../api-client';
 import { DecisionControls } from './DecisionControls';
+import { AuthorizationControls } from './AuthorizationControls';
 
 type StaffSummary = {
   user_id: string;
@@ -154,6 +155,10 @@ export default async function ReleaseDetailPage({ params }: ReleaseDetailPagePro
           {canDecide && <DecisionControls requestId={request.id} />}
         </div>
       </div>
+
+      {request.status === 'approved' && viewer.has_security_admin && (
+        <AuthorizationControls requestId={request.id} />
+      )}
     </div>
   );
 }
