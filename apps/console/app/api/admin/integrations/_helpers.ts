@@ -34,7 +34,24 @@ export async function requireSecurityAdmin(
   return { ok: true, context: { supabase, email, roles } };
 }
 
-export function maskWebhookUrl(url: string): string {
+function maskSecretReference(reference: string): string {
+  const trimmed = reference.trim();
+  if (!trimmed) {
+    return 'secret://••••';
+  }
+  const visible = trimmed.slice(-8);
+  return `secret://…${visible}`;
+}
+
+export function maskWebhookUrl(url: string, secretKey?: string | null): string {
+  if (secretKey && secretKey.trim()) {
+    return maskSecretReference(secretKey);
+  }
+
+  if (url.startsWith('secret://')) {
+    return maskSecretReference(url.slice('secret://'.length));
+  }
+
   try {
     const parsed = new URL(url);
     const tail = parsed.pathname.replace(/\/$/, '');

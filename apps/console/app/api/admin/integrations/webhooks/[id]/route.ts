@@ -15,6 +15,7 @@ type WebhookRow = {
   enabled: boolean;
   description: string | null;
   created_at: string | null;
+  secret_key: string | null;
 };
 
 function sanitise(row: WebhookRow) {
@@ -23,7 +24,8 @@ function sanitise(row: WebhookRow) {
     kind: row.kind,
     enabled: Boolean(row.enabled),
     description: row.description,
-    maskedUrl: maskWebhookUrl(row.url),
+    maskedUrl: maskWebhookUrl(row.url, row.secret_key ?? null),
+    secretKey: row.secret_key,
     createdAt: row.created_at
   };
 }
@@ -66,7 +68,7 @@ export async function PATCH(
   const { data, error } = await (supabase.from('outbound_webhooks') as any)
     .update(updates)
     .eq('id', id)
-    .select('id, kind, url, enabled, description, created_at')
+    .select('id, kind, url, enabled, description, created_at, secret_key')
     .maybeSingle();
 
   if (error) {

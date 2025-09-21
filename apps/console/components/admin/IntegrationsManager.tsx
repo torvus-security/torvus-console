@@ -10,6 +10,7 @@ type WebhookRecord = {
   description: string | null;
   maskedUrl: string;
   createdAt: string | null;
+  secretKey: string | null;
 };
 
 type EventRecord = {
@@ -63,7 +64,7 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
   const [status, setStatus] = useState<StatusMessage | null>(null);
   const [pending, setPending] = useState<PendingAction>(null);
   const [kind, setKind] = useState<'slack' | 'teams'>('slack');
-  const [url, setUrl] = useState('');
+  const [secretKey, setSecretKey] = useState('');
   const [description, setDescription] = useState('');
 
   const sortedWebhooks = useMemo(() => {
@@ -84,8 +85,8 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
   async function createWebhook(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!url.trim()) {
-      setStatus({ type: 'error', message: 'Enter a webhook URL.' });
+    if (!secretKey.trim()) {
+      setStatus({ type: 'error', message: 'Enter a secret reference key.' });
       return;
     }
 
@@ -96,7 +97,7 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
       const response = await fetch('/api/admin/integrations/webhooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kind, url: url.trim(), description })
+        body: JSON.stringify({ kind, secretKey: secretKey.trim(), description })
       });
 
       const payload = await response.json().catch(() => null);
@@ -108,7 +109,7 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
       }
 
       setWebhooks((prev) => [payload as WebhookRecord, ...prev]);
-      setUrl('');
+      setSecretKey('');
       setDescription('');
       setKind('slack');
       setStatus({ type: 'success', message: 'Webhook added successfully.' });
@@ -266,7 +267,8 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
           <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-6">
             <h2 className="text-xl font-semibold text-slate-100">Add webhook</h2>
             <p className="mt-1 text-sm text-slate-400">
-              Provide an incoming webhook URL from Slack or Microsoft Teams.
+              Reference a stored secret key containing the webhook URL. Create or rotate secrets from the Secrets
+              admin page.
             </p>
             <form onSubmit={createWebhook} className="mt-4 flex flex-col gap-4">
               <label className="flex flex-col gap-2 text-sm text-slate-300">
@@ -281,12 +283,12 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
                 </select>
               </label>
               <label className="flex flex-col gap-2 text-sm text-slate-300">
-                <span>Webhook URL</span>
+                <span>Secret key</span>
                 <input
-                  type="url"
-                  value={url}
-                  onChange={(event) => setUrl(event.target.value)}
-                  placeholder="https://hooks.slack.com/..."
+                  type="text"
+                  value={secretKey}
+                  onChange={(event) => setSecretKey(event.target.value)}
+                  placeholder="slack.webhook.prod or slack.webhook@prod"
                   className="rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-emerald-400 focus:outline-none"
                   required
                 />
@@ -319,7 +321,7 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
               <thead className="bg-slate-900/70 text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th scope="col" className="px-4 py-3 text-left">Destination</th>
-                  <th scope="col" className="px-4 py-3 text-left">URL</th>
+                  <th scope="col" className="px-4 py-3 text-left">Secret</th>
                   <th scope="col" className="px-4 py-3 text-left">Created</th>
                   <th scope="col" className="px-4 py-3" colSpan={3}>
                     <span className="sr-only">Actions</span>
@@ -346,7 +348,12 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
                             <span>{webhook.description ?? '—'}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-slate-300">{webhook.maskedUrl}</td>
+                        <td className="px-4 py-3 text-sm text-slate-300">
+                          <div className="flex flex-col">
+                            <span>{webhook.maskedUrl}</span>
+                            <span className="text-xs text-slate-500">{webhook.secretKey ?? '—'}</span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-sm text-slate-400">{formatTimestamp(webhook.createdAt)}</td>
                         <td className="px-2 py-3 text-right">
                           <button
