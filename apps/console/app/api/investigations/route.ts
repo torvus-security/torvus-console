@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logAudit } from '../../../server/audit';
-import {
-  getInvestigationById,
-  INVESTIGATION_SEVERITIES,
-  type InvestigationDetail
-} from '../../../lib/data/investigations';
+import { INVESTIGATION_SEVERITIES } from '../../../lib/investigations/constants';
+import { getInvestigationById, type InvestigationDetail } from '../../../lib/data/investigations';
 import {
   resolveViewer,
   canManageInvestigations,

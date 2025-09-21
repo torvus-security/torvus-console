@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logAudit, type AuditLogInput } from '../../../../server/audit';
 import {
-  getInvestigationById,
   INVESTIGATION_SEVERITIES,
-  INVESTIGATION_STATUSES,
-  type InvestigationEvent
-} from '../../../../lib/data/investigations';
+  INVESTIGATION_STATUSES
+} from '../../../../lib/investigations/constants';
+import { getInvestigationById, type InvestigationEvent } from '../../../../lib/data/investigations';
 import {
   resolveViewer,
   canManageInvestigations,

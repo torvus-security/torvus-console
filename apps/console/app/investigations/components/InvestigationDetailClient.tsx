@@ -3,12 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import {
-  INVESTIGATION_SEVERITIES,
-  INVESTIGATION_STATUSES,
-  type InvestigationDetail,
-  type InvestigationEvent
-} from '../../../lib/data/investigations';
+import { INVESTIGATION_SEVERITIES, INVESTIGATION_STATUSES } from '../../../lib/investigations/constants';
+import type { InvestigationDetail, InvestigationEvent } from '../../../lib/data/investigations';
 
 type StaffOption = {
   id: string;

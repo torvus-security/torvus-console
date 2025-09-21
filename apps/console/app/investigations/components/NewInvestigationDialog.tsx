@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
-import { INVESTIGATION_SEVERITIES } from '../../../lib/data/investigations';
+import { INVESTIGATION_SEVERITIES } from '../../../lib/investigations/constants';
 
 type NewInvestigationDialogProps = {
   canManage: boolean;

@@ -1,10 +1,10 @@
 import { createSupabaseServiceRoleClient } from '../supabase';
-
-export const INVESTIGATION_STATUSES = ['open', 'triage', 'in_progress', 'closed'] as const;
-export const INVESTIGATION_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
-
-export type InvestigationStatus = (typeof INVESTIGATION_STATUSES)[number];
-export type InvestigationSeverity = (typeof INVESTIGATION_SEVERITIES)[number];
+import {
+  INVESTIGATION_SEVERITIES,
+  INVESTIGATION_STATUSES,
+  type InvestigationSeverity,
+  type InvestigationStatus
+} from '../investigations/constants';
 
 export type InvestigationUserRef = {
   id: string | null;

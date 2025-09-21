@@ -4,12 +4,8 @@ import { Suspense } from 'react';
 import clsx from 'clsx';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { getStaffUser } from '../../lib/auth';
-import {
-  INVESTIGATION_SEVERITIES,
-  INVESTIGATION_STATUSES,
-  type InvestigationListItem
-} from '../../lib/data/investigations';
-import { listInvestigations } from '../../lib/data/investigations';
+import { INVESTIGATION_SEVERITIES, INVESTIGATION_STATUSES } from '../../lib/investigations/constants';
+import { listInvestigations, type InvestigationListItem } from '../../lib/data/investigations';
 import NewInvestigationDialog from './components/NewInvestigationDialog';
 
 export const metadata: Metadata = {
