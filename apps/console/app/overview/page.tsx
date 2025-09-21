@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { headers } from 'next/headers';
 import clsx from 'clsx';
 import { requireStaff } from '../../lib/auth';
@@ -105,6 +106,8 @@ export default async function OverviewPage() {
     openInvestigations
   };
 
+  const isSecurityAdmin = staffUser.roles.some((role) => role.toLowerCase() === 'security_admin');
+
   const analytics = getAnalyticsClient();
   analytics.capture('staff_console_viewed', {
     path: '/overview',
@@ -143,6 +146,20 @@ export default async function OverviewPage() {
           </header>
           <p className="muted">UTC timestamp, pulled from audit trail for evidence parity.</p>
         </article>
+        {isSecurityAdmin && (
+          <article className="card">
+            <header>
+              <h2>Admin</h2>
+            </header>
+            <p className="muted">Manage people &amp; roles.</p>
+            <Link
+              href="/admin/people"
+              className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
+            >
+              Open admin tools →
+            </Link>
+          </article>
+        )}
       </div>
 
       <div className="grid-two">
