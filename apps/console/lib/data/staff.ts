@@ -34,6 +34,8 @@ type StaffUserRow = {
 
 type StaffRoleMembershipRow = {
   user_id: string;
+  valid_to: string | null;
+  granted_via: string | null;
   staff_roles: {
     name: string;
   } | null;
@@ -53,7 +55,7 @@ async function fetchRolesForUserIds(userIds: string[]): Promise<Map<string, stri
   const supabase = createSupabaseServiceRoleClient();
 
   const { data, error } = await (supabase.from('staff_role_members') as any)
-    .select('user_id, staff_roles ( name )')
+    .select('user_id, valid_to, granted_via, staff_roles ( name )')
     .in('user_id', userIds);
 
   if (error) {
@@ -61,8 +63,21 @@ async function fetchRolesForUserIds(userIds: string[]): Promise<Map<string, stri
   }
 
   const memberships = (data as StaffRoleMembershipRow[] | null) ?? [];
+  const now = new Date();
 
   for (const membership of memberships) {
+    const grantedVia = membership.granted_via ?? 'normal';
+    if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
+      continue;
+    }
+
+    if (membership.valid_to) {
+      const validTo = new Date(membership.valid_to);
+      if (validTo <= now) {
+        continue;
+      }
+    }
+
     const roleName = membership.staff_roles?.name;
     if (!roleName) {
       continue;
