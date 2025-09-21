@@ -64,7 +64,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   const navItems = [...buildNavItems(staffUser.permissions)];
 
-  if (staffUser.roles.includes('security_admin')) {
+  const hasSecurityAdminRole = staffUser.roles.some((role) => role.toLowerCase() === 'security_admin');
+
+  if (hasSecurityAdminRole) {
+    navItems.push({ href: '/admin/people', label: 'Admin' });
     navItems.push({ href: '/staff', label: 'Staff' });
   }
 

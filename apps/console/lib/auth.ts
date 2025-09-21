@@ -1,8 +1,88 @@
 import { cache } from 'react';
+import type { NextRequest } from 'next/server';
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './supabase';
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
 import { getCfAccessEmail } from './auth/cfAccess';
+
+export type PostgrestLikeOrSupabase = {
+  from: (table: string) => unknown;
+};
+
+function normaliseEmail(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function getHeaderCaseInsensitive(headers: Headers, name: string): string | null {
+  const direct = headers.get(name);
+  if (direct) {
+    return direct;
+  }
+  const lowerName = name.toLowerCase();
+  for (const [key, value] of headers.entries()) {
+    if (key.toLowerCase() === lowerName) {
+      return value;
+    }
+  }
+  return null;
+}
+
+export function getRequesterEmail(req: Request | NextRequest): string | null {
+  const headers = req.headers;
+  const email =
+    getHeaderCaseInsensitive(headers, 'cf-access-authenticated-user-email')
+    ?? getHeaderCaseInsensitive(headers, 'x-user-email');
+  return normaliseEmail(email);
+}
+
+export async function getUserRolesByEmail(
+  email: string,
+  client: PostgrestLikeOrSupabase
+): Promise<string[]> {
+  const normalisedEmail = normaliseEmail(email);
+  if (!normalisedEmail) {
+    return [];
+  }
+
+  type RoleMembershipRow = {
+    staff_role_members?: Array<{
+      staff_roles?: {
+        name: string | null;
+      } | null;
+    }> | null;
+  } | null;
+
+  const query = (client.from('staff_users') as any)
+    .select(
+      `staff_role_members:staff_role_members (
+        staff_roles:staff_roles ( name )
+      )`
+    )
+    .eq('email', normalisedEmail)
+    .maybeSingle();
+
+  const { data, error } = (await query) as {
+    data: RoleMembershipRow;
+    error: { code?: string } | null;
+  };
+
+  if (error && error.code !== 'PGRST116') {
+    throw error;
+  }
+
+  const memberships = data?.staff_role_members ?? [];
+  const roles = memberships
+    .map((membership) => membership?.staff_roles?.name?.trim() ?? null)
+    .filter((role): role is string => Boolean(role));
+
+  const uniqueRoles = Array.from(new Set(roles));
+  uniqueRoles.sort((a, b) => a.localeCompare(b));
+  return uniqueRoles;
+}
 
 export type SessionUser = {
   id: string | null;
