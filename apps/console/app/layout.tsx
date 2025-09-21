@@ -62,13 +62,22 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     );
   }
 
-  const navItems = [...buildNavItems(staffUser.permissions)];
+  const navGroups = [...buildNavItems(staffUser.permissions)];
 
   const hasSecurityAdminRole = staffUser.roles.some((role) => role.toLowerCase() === 'security_admin');
 
   if (hasSecurityAdminRole) {
-    navItems.push({ href: '/admin/people', label: 'Admin' });
-    navItems.push({ href: '/staff', label: 'Staff' });
+    const adminGroup = navGroups.find((group) => group.group === 'Admin');
+    const adminItems = [
+      { href: '/admin/people', label: 'Admin' },
+      { href: '/staff', label: 'Staff' }
+    ];
+
+    if (adminGroup) {
+      adminGroup.items.push(...adminItems);
+    } else {
+      navGroups.push({ group: 'Admin', items: adminItems });
+    }
   }
 
   return (
@@ -80,20 +89,26 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <span className="brand-text">Torvus Console</span>
           </div>
           <nav>
-            <ul>
-              {navItems.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={clsx('nav-link', {
-                      active: pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-                    })}
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            {navGroups.map((group) => (
+              <div key={group.group} className="nav-group">
+                <div className="nav-group__label">{group.group}</div>
+                <ul>
+                  {group.items.map((item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={clsx('nav-link', {
+                          active:
+                            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+                        })}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </nav>
           <footer>
             <span className="staff-name">{staffUser.displayName}</span>
