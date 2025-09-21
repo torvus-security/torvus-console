@@ -20,6 +20,7 @@ Privileged Torvus staff portal with RBAC, dual-control, and evidence-ready audit
 | `TORVUS_PLATFORM_STATS_URL` | Server-side metrics fetch for `/overview` |
 | `TORVUS_RELEASE_SIMULATOR_URL` | Optional simulator endpoint consumed by `/releases` |
 | `TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION` | Guard for real release execution (kept `0` by default) |
+| `RELEASE_EXECUTOR_SIGNING_KEY` | Server-side secret for signing release authorization manifests |
 | `NEXT_PUBLIC_STATUSPAGE_PAGE_ID` / `NEXT_PUBLIC_STATUSPAGE_URL` | Configure the embedded status widget |
 | `NEXT_PUBLIC_POSTHOG_HOST` / `NEXT_PUBLIC_POSTHOG_KEY` | Optional analytics proxy configuration |
 
