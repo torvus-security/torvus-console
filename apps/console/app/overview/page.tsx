@@ -2,6 +2,8 @@ import { headers } from 'next/headers';
 import clsx from 'clsx';
 import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
+import { countAlerts } from '../../lib/data/alerts';
+import { countInvestigations } from '../../lib/data/investigations';
 
 const DEFAULT_STATS = {
   activeAlerts: 0,
@@ -91,7 +93,17 @@ export default async function OverviewPage() {
   const staffUser = await requireStaff({ permission: 'metrics.view' });
   const headerBag = headers();
   const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
-  const stats = await loadOverviewStats(correlationId);
+  const [stats, activeAlerts, openInvestigations] = await Promise.all([
+    loadOverviewStats(correlationId),
+    countAlerts(),
+    countInvestigations()
+  ]);
+
+  const mergedStats = {
+    ...stats,
+    activeAlerts,
+    openInvestigations
+  };
 
   const analytics = getAnalyticsClient();
   analytics.capture('staff_console_viewed', {
@@ -106,28 +118,28 @@ export default async function OverviewPage() {
         <article className="card">
           <header>
             <h2>Active alerts</h2>
-            <span className="metric">{stats.activeAlerts}</span>
+            <span className="metric">{mergedStats.activeAlerts}</span>
           </header>
           <p className="muted">Alerts open across Torvus platform services.</p>
         </article>
         <article className="card">
           <header>
             <h2>Open investigations</h2>
-            <span className="metric">{stats.openInvestigations}</span>
+            <span className="metric">{mergedStats.openInvestigations}</span>
           </header>
           <p className="muted">Endpoint triage items assigned to Console operators.</p>
         </article>
         <article className="card">
           <header>
             <h2>Release train</h2>
-            <span className={clsx('metric', stats.releaseTrainStatus)}>{stats.releaseTrainStatus}</span>
+            <span className={clsx('metric', mergedStats.releaseTrainStatus)}>{mergedStats.releaseTrainStatus}</span>
           </header>
           <p className="muted">Release execution remains feature-flagged pending dual-control validation.</p>
         </article>
         <article className="card">
           <header>
             <h2>Last incident</h2>
-            <span className="metric">{formatDate(stats.lastIncidentAt)}</span>
+            <span className="metric">{formatDate(mergedStats.lastIncidentAt)}</span>
           </header>
           <p className="muted">UTC timestamp, pulled from audit trail for evidence parity.</p>
         </article>

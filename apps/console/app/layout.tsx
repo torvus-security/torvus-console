@@ -62,7 +62,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     );
   }
 
-  const navItems = buildNavItems(staffUser.permissions);
+  const navItems = [...buildNavItems(staffUser.permissions)];
+
+  if (staffUser.roles.includes('security_admin')) {
+    navItems.push({ href: '/staff', label: 'Staff' });
+  }
 
   return (
     <html lang="en" data-theme="torvus-staff">

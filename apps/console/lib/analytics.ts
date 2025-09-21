@@ -15,6 +15,8 @@ type NavItem = { href: string; label: string; permission?: PermissionKey };
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/overview', label: 'Overview', permission: 'metrics.view' },
+  { href: '/alerts', label: 'Alerts' },
+  { href: '/investigations', label: 'Investigations' },
   { href: '/audit-events', label: 'Audit Events', permission: 'audit.read' },
   { href: '/releases', label: 'Releases', permission: 'releases.simulate' }
 ];
