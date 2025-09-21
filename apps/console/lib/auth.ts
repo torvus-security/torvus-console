@@ -1,11 +1,12 @@
 import { cache } from 'react';
+import { headers } from 'next/headers';
 import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './supabase';
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
 
 export type SessionUser = {
-  id: string;
-  email: string;
+  id: string | null;
+  email: string | null;
   user_metadata?: { name?: string } & Record<string, unknown>;
 };
 
@@ -26,22 +27,50 @@ export class StaffAccessError extends Error {
   }
 }
 
+// Returns email from Cloudflare Access identity headers, if present.
+function getCloudflareEmailFromHeaders(): string | null {
+  const h = headers();
+  // Primary header set by Cloudflare Access:
+  const candidates = [
+    'cf-access-authenticated-user-email',
+    // Secondary fallbacks seen in some setups / proxies (best-effort):
+    'x-authenticated-user-email',
+    'x-auth-email',
+    'x-forwarded-email'
+  ];
+
+  for (const name of candidates) {
+    const v = h.get(name);
+    if (v && typeof v === 'string' && v.trim()) {
+      return v.trim().toLowerCase();
+    }
+  }
+  return null;
+}
+
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error) {
     console.error('Failed to resolve session user', error);
-    return null;
-  }
-  if (!data.user) {
-    return null;
   }
 
-  return {
-    id: data.user.id,
-    email: data.user.email ?? 'unknown@torvussecurity.com',
-    user_metadata: data.user.user_metadata ?? undefined
-  };
+  if (data?.user) {
+    return {
+      id: data.user.id,
+      email: data.user.email ? data.user.email.toLowerCase() : null,
+      user_metadata: data.user.user_metadata ?? undefined
+    };
+  }
+
+  // Fallback: trust Cloudflare Access (already authenticated before reaching us)
+  const cfEmail = getCloudflareEmailFromHeaders();
+  if (cfEmail) {
+    // No Supabase id yet; resolve to a staff row by email in getStaffUser()
+    return { id: null, email: cfEmail };
+  }
+
+  return null;
 });
 
 export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
@@ -51,53 +80,61 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   }
 
   const supabase = createSupabaseServiceRoleClient();
-  const { data: staffRecordRaw, error: staffError } = await (supabase
-    .from('staff_users') as any)
-    .select('user_id, email, display_name, passkey_enrolled')
-    .eq('user_id', sessionUser.id)
-    .maybeSingle();
-
-  if (staffError) {
-    console.error('Error loading staff user', staffError);
-    throw new StaffAccessError('Unable to load staff profile', 503);
-  }
 
   type StaffRecordRow = {
     user_id: string;
     email: string;
-    display_name: string;
-    passkey_enrolled: boolean;
+    display_name: string | null;
+    passkey_enrolled: boolean | null;
   };
 
-  let staffRecordData = staffRecordRaw as StaffRecordRow | null;
+  let staffRecord: StaffRecordRow | null = null;
 
-  if (!staffRecordData && sessionUser.email) {
-    const { data: byEmail } = await (supabase
+  if (sessionUser.id) {
+    const { data, error } = await (supabase
       .from('staff_users') as any)
       .select('user_id, email, display_name, passkey_enrolled')
-      .eq('email', (sessionUser.email || '').toLowerCase())
+      .eq('user_id', sessionUser.id)
       .maybeSingle();
 
-    staffRecordData = (byEmail as StaffRecordRow | null) || null;
+    if (error) {
+      console.error('Error loading staff user', error);
+      throw new StaffAccessError('Unable to load staff profile', 503);
+    }
+    staffRecord = (data as StaffRecordRow | null) ?? null;
+  }
+
+  if (!staffRecord && sessionUser.email) {
+    const { data, error } = await (supabase
+      .from('staff_users') as any)
+      .select('user_id, email, display_name, passkey_enrolled')
+      .eq('email', sessionUser.email)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error loading staff user', error);
+      throw new StaffAccessError('Unable to load staff profile', 503);
+    }
+    staffRecord = (data as StaffRecordRow | null) ?? null;
   }
 
   if (process.env.NODE_ENV !== 'production') {
     console.debug('staff-lookup', {
       sessionUser: { id: sessionUser.id, email: sessionUser.email },
-      found: Boolean(staffRecordData)
+      found: Boolean(staffRecord)
     });
   }
-
-  const staffRecord = staffRecordData;
 
   if (!staffRecord) {
     return null;
   }
 
+  const userIdForQuery = staffRecord.user_id;
+
   const { data: roleMembershipRows, error: roleMembershipError } = await (supabase
     .from('staff_role_members') as any)
     .select('role_id')
-    .eq('user_id', staffRecord.user_id);
+    .eq('user_id', userIdForQuery);
 
   const roleMemberships = roleMembershipRows as Array<{ role_id: string }> | null;
 
@@ -142,17 +179,19 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     });
   }
 
+  const resolvedEmail = (staffRecord.email ?? sessionUser.email ?? 'unknown@torvussecurity.com').toLowerCase();
+
   return {
-    id: staffRecord.user_id,
-    email: staffRecord.email ?? sessionUser.email!,
+    id: userIdForQuery,
+    email: resolvedEmail,
     displayName:
       staffRecord.display_name ??
       (sessionUser.user_metadata?.name as string | undefined) ??
-      sessionUser.email!,
-    passkeyEnrolled: staffRecord.passkey_enrolled,
+      resolvedEmail,
+    passkeyEnrolled: Boolean(staffRecord.passkey_enrolled),
     roles,
     permissions: Array.from(permissionsSet),
-    analyticsId: anonymiseEmail(staffRecord.email)
+    analyticsId: anonymiseEmail(resolvedEmail)
   };
 });
 
