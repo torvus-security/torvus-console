@@ -24,6 +24,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/investigations', label: 'Investigations', permission: 'investigations.view', group: 'Operations' },
   { href: '/releases', label: 'Releases', permission: 'releases.simulate', group: 'Operations' },
   { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' },
+  { href: '/admin/break-glass', label: 'Break Glass', permission: 'investigations.manage', group: 'Security' },
   { href: '/profile', label: 'Profile', group: 'Account' }
 ];
 
