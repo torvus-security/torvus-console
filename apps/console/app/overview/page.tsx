@@ -5,6 +5,7 @@ import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
 import { countAlerts } from '../../lib/data/alerts';
 import { countInvestigations } from '../../lib/data/investigations';
+import { logAudit } from '../../server/audit';
 
 const DEFAULT_STATS = {
   activeAlerts: 0,
@@ -113,6 +114,17 @@ export default async function OverviewPage() {
     path: '/overview',
     user: staffUser.analyticsId,
     correlation_id: correlationId
+  });
+
+  await logAudit({
+    action: 'page_view',
+    targetType: 'page',
+    targetId: 'overview',
+    resource: 'console.overview',
+    meta: {
+      active_alerts: mergedStats.activeAlerts,
+      open_investigations: mergedStats.openInvestigations
+    }
   });
 
   return (

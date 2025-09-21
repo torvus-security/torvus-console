@@ -11,15 +11,22 @@ export type AnalyticsEventKey =
 
 type AnalyticsPayload = Record<string, string | number | boolean | null | undefined>;
 
-type NavItem = { href: string; label: string; permission?: PermissionKey };
+type NavItem = {
+  href: string;
+  label: string;
+  permission?: PermissionKey;
+  group?: 'Operations' | 'Security' | 'Admin';
+};
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/overview', label: 'Overview', permission: 'metrics.view' },
-  { href: '/alerts', label: 'Alerts' },
-  { href: '/investigations', label: 'Investigations' },
-  { href: '/releases', label: 'Releases', permission: 'releases.simulate' },
-  { href: '/audit', label: 'Audit' }
+  { href: '/overview', label: 'Overview', permission: 'metrics.view', group: 'Operations' },
+  { href: '/alerts', label: 'Alerts', group: 'Operations' },
+  { href: '/investigations', label: 'Investigations', group: 'Operations' },
+  { href: '/releases', label: 'Releases', permission: 'releases.simulate', group: 'Operations' },
+  { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' }
 ];
+
+const NAV_GROUP_ORDER: Array<NonNullable<NavItem['group']>> = ['Operations', 'Security', 'Admin'];
 
 class AnalyticsClient {
   private readonly queue: Array<{ event: AnalyticsEventKey; payload: AnalyticsPayload }> = [];
@@ -78,8 +85,36 @@ export function anonymiseEmail(email: string): string {
   return hash.digest('hex');
 }
 
-export function buildNavItems(staffPermissions: PermissionKey[]): Array<{ href: string; label: string }> {
-  return NAV_ITEMS.filter((item) =>
-    item.permission ? staffPermissions.includes(item.permission) : true
-  ).map(({ href, label }) => ({ href, label }));
+type NavGroup = { group: string; items: Array<{ href: string; label: string }> };
+
+export function buildNavItems(staffPermissions: PermissionKey[]): NavGroup[] {
+  const groups = new Map<string, Array<{ href: string; label: string }>>();
+
+  for (const item of NAV_ITEMS) {
+    if (item.permission && !staffPermissions.includes(item.permission)) {
+      continue;
+    }
+
+    const groupName = item.group ?? 'Operations';
+    if (!groups.has(groupName)) {
+      groups.set(groupName, []);
+    }
+
+    groups.get(groupName)!.push({ href: item.href, label: item.label });
+  }
+
+  const orderedGroups: NavGroup[] = [];
+  for (const group of NAV_GROUP_ORDER) {
+    const items = groups.get(group);
+    if (items && items.length > 0) {
+      orderedGroups.push({ group, items });
+      groups.delete(group);
+    }
+  }
+
+  for (const [group, items] of groups.entries()) {
+    orderedGroups.push({ group, items });
+  }
+
+  return orderedGroups;
 }
