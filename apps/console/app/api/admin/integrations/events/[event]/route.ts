@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireSecurityAdmin } from '../../../_helpers';
+import { requireSecurityAdmin } from '../../_helpers';
 
 export const dynamic = 'force-dynamic';
 

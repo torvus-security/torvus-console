@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validate as validateUuid } from 'uuid';
 import { requireSecurityAdmin } from '../../../_helpers';
-import { sendWebhookPreview } from '../../../../../../server/notify';
+import { sendWebhookPreview } from '../../../../../../../server/notify';
 
 export const dynamic = 'force-dynamic';
 
