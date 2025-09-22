@@ -29,4 +29,5 @@ closed AS (
 )
 SELECT * FROM closed ORDER BY user_id, role_id, closed_from;
 
+
 COMMIT;

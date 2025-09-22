@@ -7,8 +7,8 @@ Follow these steps in the Supabase SQL editor after applying a migration set.
 2. Execute the script.
 3. **Expected result:** the query returns **zero rows**. Any returned rows list missing tables, columns, indexes, or views that must be addressed before proceeding.
 
-## 2. Post-apply smoke checks
 1. Replace `your-email@example.com` in [`db/verify/post_apply_smoke.sql`](db/verify/post_apply_smoke.sql) with the staff email you want to inspect (lower/upper case does not matter).
+
 2. Run the entire script in the SQL editor.
 3. **Result set interpretation:**
    - The first result set should be empty. If it contains rows, the named `staff_roles` seeds are missing.
