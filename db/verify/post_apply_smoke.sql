@@ -30,12 +30,12 @@ select id, read_only, message
 from public.app_control
 where id = 1;
 
--- 3. Resolve effective roles for the supplied email (replace {{EMAIL}} before running).
+-- 3. Resolve effective roles for the supplied email (replace 'your-email@example.com' with a real email before running).
 select distinct sr.name as effective_role
 from public.staff_users su
 join public.staff_role_members srm on srm.user_id = su.user_id
 join public.staff_roles sr on sr.id = srm.role_id
-where su.email = lower('{{EMAIL}}')
+where su.email = lower('your-email@example.com')
   and coalesce(srm.granted_via, 'normal') in ('normal','break_glass')
   and coalesce(srm.valid_from, now()) <= now()
   and (srm.valid_to is null or srm.valid_to > now())
