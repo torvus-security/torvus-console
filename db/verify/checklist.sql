@@ -229,38 +229,56 @@ missing_tables as (
   select 'table' as object_type,
          rt.schema_name || '.' || rt.table_name as object_name
   from required_tables rt
-  left join information_schema.tables t
-    on t.table_schema = rt.schema_name
-   and t.table_name = rt.table_name
-  where t.table_name is null
+  where not exists (
+    select 1
+    from pg_catalog.pg_class c
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = rt.schema_name
+      and c.relname = rt.table_name
+      and c.relkind in ('r', 'p', 'f')
+  )
 ),
 missing_columns as (
   select 'column' as object_type,
          rc.schema_name || '.' || rc.table_name || '.' || rc.column_name as object_name
   from required_columns rc
-  left join information_schema.columns c
-    on c.table_schema = rc.schema_name
-   and c.table_name = rc.table_name
-   and c.column_name = rc.column_name
-  where c.column_name is null
+  where not exists (
+    select 1
+    from pg_catalog.pg_attribute a
+    join pg_catalog.pg_class c on c.oid = a.attrelid
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = rc.schema_name
+      and c.relname = rc.table_name
+      and a.attname = rc.column_name
+      and a.attnum > 0
+      and not a.attisdropped
+  )
 ),
 missing_indexes as (
   select 'index' as object_type,
          ri.schema_name || '.' || ri.index_name as object_name
   from required_indexes ri
-  left join pg_indexes i
-    on i.schemaname = ri.schema_name
-   and i.indexname = ri.index_name
-  where i.indexname is null
+  where not exists (
+    select 1
+    from pg_catalog.pg_class c
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = ri.schema_name
+      and c.relname = ri.index_name
+      and c.relkind = 'i'
+  )
 ),
 missing_views as (
   select 'view' as object_type,
          rv.schema_name || '.' || rv.view_name as object_name
   from required_views rv
-  left join information_schema.views v
-    on v.table_schema = rv.schema_name
-   and v.table_name = rv.view_name
-  where v.table_name is null
+  where not exists (
+    select 1
+    from pg_catalog.pg_class c
+    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = rv.schema_name
+      and c.relname = rv.view_name
+      and c.relkind in ('v', 'm')
+  )
 )
 select *
 from (
