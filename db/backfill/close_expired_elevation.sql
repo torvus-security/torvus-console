@@ -11,7 +11,7 @@ WITH updated AS (
   WHERE er.expires_at IS NOT NULL
     AND er.expires_at < now()
     AND er.status IN ('pending', 'approved')
-  RETURNING er.id, er.requester_user_id, er.requested_roles, er.status, er.expires_at
+  RETURNING er.id, er.requested_by, er.requested_roles, er.status, er.expires_at
 )
 SELECT * FROM updated ORDER BY expires_at;
 
