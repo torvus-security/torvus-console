@@ -11,17 +11,4 @@ WITH updated AS (
   WHERE er.expires_at IS NOT NULL
     AND er.expires_at < now()
     AND er.status IN ('pending', 'approved')
-  RETURNING er.id, er.requester_user_id, er.requested_roles, er.status, er.expires_at
-)
-SELECT * FROM updated ORDER BY expires_at;
-
--- Mark expired elevation requests as expired to align status with their expiry timestamps.
--- Run during low-traffic periods: psql -f db/backfill/close_expired_elevation.sql
-BEGIN;
-
-UPDATE elevation_requests
-SET status = 'expired'
-WHERE expires_at < NOW()
-  AND status IN ('pending', 'approved');
-
 COMMIT;

@@ -37,5 +37,4 @@ ALTER TABLE public.staff_users
   ADD CONSTRAINT staff_users_email_lower_check
   CHECK (email = lower(email));
 
-
 COMMIT;
