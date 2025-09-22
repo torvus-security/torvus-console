@@ -1,0 +1,528 @@
+{
+  "tables": {
+    "public.staff_users": {
+      "columns": {
+        "user_id": { "type": "uuid", "nullable": false, "default": null },
+        "email": { "type": "text", "nullable": false, "default": null },
+        "display_name": { "type": "text", "nullable": false, "default": null },
+        "passkey_enrolled": { "type": "boolean", "nullable": false, "default": false },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "primaryKey": ["user_id"],
+      "foreignKeys": [
+        { "columns": ["user_id"], "references": "auth.users(id)", "onDelete": "cascade" }
+      ],
+      "uniques": [
+        { "name": "staff_users_email_key", "columns": ["email"] }
+      ]
+    },
+    "public.staff_roles": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "name": { "type": "text", "nullable": false, "default": null },
+        "description": { "type": "text", "nullable": false, "default": "''" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "primaryKey": ["id"],
+      "uniques": [
+        { "name": "staff_roles_name_key", "columns": ["name"] }
+      ]
+    },
+    "public.staff_role_members": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "user_id": { "type": "uuid", "nullable": false, "default": null },
+        "role_id": { "type": "uuid", "nullable": false, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "valid_from": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "valid_to": { "type": "timestamptz", "nullable": true, "default": null },
+        "granted_via": {
+          "type": "text",
+          "nullable": false,
+          "default": "'normal'",
+          "check": "granted_via in ('normal','break_glass')"
+        },
+        "justification": { "type": "text", "nullable": true, "default": null },
+        "ticket_url": { "type": "text", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["user_id"], "references": "public.staff_users(user_id)", "onDelete": "cascade" },
+        { "columns": ["role_id"], "references": "public.staff_roles(id)", "onDelete": "cascade" }
+      ],
+      "uniques": [
+        { "name": "staff_role_members_user_role_key", "columns": ["user_id", "role_id"] }
+      ],
+      "indexes": [
+        { "name": "idx_staff_role_members_user", "columns": ["user_id"] },
+        { "name": "idx_staff_role_members_role", "columns": ["role_id"] },
+        { "name": "staff_role_members_user_valid_to_via_idx", "columns": ["user_id", "valid_to", "granted_via"] }
+      ]
+    },
+    "public.staff_permissions": {
+      "columns": {
+        "key": { "type": "text", "nullable": false, "default": null },
+        "description": { "type": "text", "nullable": false, "default": null }
+      },
+      "primaryKey": ["key"]
+    },
+    "public.staff_role_permissions": {
+      "columns": {
+        "role_id": { "type": "uuid", "nullable": false, "default": null },
+        "permission_key": { "type": "text", "nullable": false, "default": null }
+      },
+      "primaryKey": ["role_id", "permission_key"],
+      "foreignKeys": [
+        { "columns": ["role_id"], "references": "public.staff_roles(id)", "onDelete": "cascade" },
+        { "columns": ["permission_key"], "references": "public.staff_permissions(key)", "onDelete": "cascade" }
+      ]
+    },
+    "public.staff_dual_control_requests": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "action_key": { "type": "text", "nullable": false, "default": null },
+        "payload": { "type": "jsonb", "nullable": false, "default": null },
+        "correlation_id": { "type": "text", "nullable": false, "default": null },
+        "requested_by": { "type": "uuid", "nullable": false, "default": null },
+        "approved_by": { "type": "uuid", "nullable": true, "default": null },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": "'requested'",
+          "check": "status in ('requested','approved','executed','rejected','expired')"
+        },
+        "requested_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "approved_at": { "type": "timestamptz", "nullable": true, "default": null },
+        "executed_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["requested_by"], "references": "public.staff_users(user_id)", "onDelete": "cascade" },
+        { "columns": ["approved_by"], "references": "public.staff_users(user_id)", "onDelete": "set null" }
+      ],
+      "uniques": [
+        { "name": "staff_dual_control_requests_action_corr_key", "columns": ["action_key", "correlation_id"] }
+      ]
+    },
+    "public.personal_access_tokens": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "user_id": { "type": "uuid", "nullable": false, "default": null },
+        "name": { "type": "text", "nullable": false, "default": null },
+        "token_hash": { "type": "bytea", "nullable": false, "default": null },
+        "scopes": { "type": "text[]", "nullable": false, "default": "'{read,write}'" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "last_used_at": { "type": "timestamptz", "nullable": true, "default": null },
+        "expires_at": { "type": "timestamptz", "nullable": true, "default": null },
+        "revoked": { "type": "boolean", "nullable": false, "default": false }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["user_id"], "references": "public.staff_users(user_id)", "onDelete": "cascade" }
+      ],
+      "uniques": [
+        { "name": "personal_access_tokens_user_id_name_key", "columns": ["user_id", "name"] }
+      ],
+      "indexes": [
+        { "name": "personal_access_tokens_user_id_idx", "columns": ["user_id"] },
+        { "name": "personal_access_tokens_revoked_expires_at_idx", "columns": ["revoked", "expires_at"] },
+        { "name": "personal_access_tokens_last_used_at_idx", "columns": ["last_used_at"] }
+      ]
+    },
+    "public.audit_events": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "happened_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "actor_user_id": { "type": "uuid", "nullable": true, "default": null },
+        "actor_email": { "type": "text", "nullable": true, "default": null },
+        "actor_roles": { "type": "text[]", "nullable": true, "default": null },
+        "action": { "type": "text", "nullable": false, "default": null },
+        "target_type": { "type": "text", "nullable": true, "default": null },
+        "target_id": { "type": "text", "nullable": true, "default": null },
+        "resource": { "type": "text", "nullable": true, "default": null },
+        "ip": { "type": "inet", "nullable": true, "default": null },
+        "user_agent": { "type": "text", "nullable": true, "default": null },
+        "meta": { "type": "jsonb", "nullable": false, "default": "'{}'::jsonb" },
+        "actor": { "type": "text", "nullable": true, "default": null, "generated": "actor_email" },
+        "event": { "type": "text", "nullable": false, "default": null, "generated": "action" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": null, "generated": "happened_at" },
+        "object": { "type": "text", "nullable": true, "default": null, "generated": "COALESCE(target_id, resource)" },
+        "metadata": { "type": "jsonb", "nullable": false, "default": null, "generated": "meta" }
+      },
+      "primaryKey": ["id"],
+      "indexes": [
+        { "name": "idx_audit_events_happened_at_desc", "columns": ["happened_at"], "order": "desc" },
+        { "name": "idx_audit_events_action", "columns": ["action"] },
+        { "name": "idx_audit_events_actor_email", "columns": ["actor_email"] },
+        { "name": "idx_audit_events_target", "columns": ["target_type", "target_id"] }
+      ]
+    },
+    "public.inbound_integrations": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "check": "kind in ('generic','statuspage','sentry','posthog')"
+        },
+        "name": { "type": "text", "nullable": false, "default": null },
+        "secret_hash": { "type": "bytea", "nullable": false, "default": null },
+        "secret_ciphertext": { "type": "bytea", "nullable": false, "default": null },
+        "enabled": { "type": "boolean", "nullable": false, "default": true },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "last_seen_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "uniques": [
+        { "name": "inbound_integrations_kind_name_key", "columns": ["kind", "name"] }
+      ]
+    },
+    "public.inbound_events": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "integration_id": { "type": "uuid", "nullable": false, "default": null },
+        "ext_id": { "type": "text", "nullable": false, "default": null },
+        "dedup_hash": { "type": "bytea", "nullable": false, "default": null },
+        "received_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "payload": { "type": "jsonb", "nullable": false, "default": "'{}'::jsonb" }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["integration_id"], "references": "public.inbound_integrations(id)", "onDelete": "cascade" }
+      ],
+      "uniques": [
+        { "name": "inbound_events_integration_ext_id_key", "columns": ["integration_id", "ext_id"] }
+      ],
+      "indexes": [
+        { "name": "idx_inbound_events_integration_received_desc", "columns": ["integration_id", "received_at"], "order": "desc" },
+        { "name": "idx_inbound_events_dedup_hash", "columns": ["dedup_hash"] }
+      ]
+    },
+    "public.investigations": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "title": { "type": "text", "nullable": false, "default": null },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": "'open'",
+          "check": "status in ('open','triage','in_progress','closed')"
+        },
+        "severity": {
+          "type": "text",
+          "nullable": false,
+          "default": "'medium'",
+          "check": "severity in ('low','medium','high','critical')"
+        },
+        "opened_by": { "type": "uuid", "nullable": true, "default": null },
+        "assigned_to": { "type": "uuid", "nullable": true, "default": null },
+        "tags": { "type": "text[]", "nullable": false, "default": "'{}'" },
+        "summary": { "type": "text", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["opened_by"], "references": "auth.users(id)", "onDelete": "set null" },
+        { "columns": ["assigned_to"], "references": "auth.users(id)", "onDelete": "set null" }
+      ],
+      "indexes": [
+        { "name": "idx_investigations_updated_at_desc", "columns": ["updated_at"], "order": "desc" }
+      ]
+    },
+    "public.investigation_events": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "investigation_id": { "type": "uuid", "nullable": false, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "actor_user_id": { "type": "uuid", "nullable": true, "default": null },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "check": "kind in ('note','status_change','assignment_change','attachment')"
+        },
+        "message": { "type": "text", "nullable": true, "default": null },
+        "meta": { "type": "jsonb", "nullable": false, "default": "'{}'::jsonb" }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["investigation_id"], "references": "public.investigations(id)", "onDelete": "cascade" },
+        { "columns": ["actor_user_id"], "references": "public.staff_users(user_id)", "onDelete": "set null" }
+      ],
+      "indexes": [
+        { "name": "idx_investigation_events_investigation_created_desc", "columns": ["investigation_id", "created_at"], "order": "desc" }
+      ]
+    },
+    "public.release_requests": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "title": { "type": "text", "nullable": false, "default": null },
+        "description": { "type": "text", "nullable": true, "default": null },
+        "requested_by": { "type": "uuid", "nullable": false, "default": null },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": "'pending'",
+          "check": "status in ('pending','approved','rejected','executed')"
+        },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "last_decision_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["requested_by"], "references": "public.staff_users(user_id)", "onDelete": "restrict" }
+      ]
+    },
+    "public.release_approvals": {
+      "columns": {
+        "id": { "type": "bigserial", "nullable": false, "default": null },
+        "request_id": { "type": "uuid", "nullable": false, "default": null },
+        "approver_id": { "type": "uuid", "nullable": false, "default": null },
+        "decision": {
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "check": "decision in ('approve','reject')"
+        },
+        "reason": { "type": "text", "nullable": true, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["request_id"], "references": "public.release_requests(id)", "onDelete": "cascade" },
+        { "columns": ["approver_id"], "references": "public.staff_users(user_id)", "onDelete": "restrict" }
+      ],
+      "uniques": [
+        { "name": "release_approvals_request_approver_key", "columns": ["request_id", "approver_id"] }
+      ]
+    },
+    "public.notification_prefs": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "event": { "type": "text", "nullable": false, "default": null },
+        "enabled": { "type": "boolean", "nullable": false, "default": true }
+      },
+      "primaryKey": ["id"],
+      "uniques": [
+        { "name": "notification_prefs_event_key", "columns": ["event"] }
+      ]
+    },
+    "public.outbound_webhooks": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "kind": {
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "check": "kind in ('slack','teams')"
+        },
+        "url": { "type": "text", "nullable": false, "default": null },
+        "enabled": { "type": "boolean", "nullable": false, "default": true },
+        "description": { "type": "text", "nullable": true, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "secret_key": { "type": "text", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "indexes": [
+        { "name": "outbound_webhooks_secret_key_idx", "columns": ["secret_key"], "predicate": "secret_key is not null" }
+      ]
+    },
+    "public.secrets": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "key": { "type": "text", "nullable": false, "default": null },
+        "env": { "type": "text", "nullable": false, "default": "'prod'" },
+        "description": { "type": "text", "nullable": true, "default": null },
+        "ciphertext": { "type": "bytea", "nullable": false, "default": null },
+        "iv": { "type": "bytea", "nullable": false, "default": null },
+        "aad": { "type": "text", "nullable": true, "default": null },
+        "version": { "type": "integer", "nullable": false, "default": 1 },
+        "requires_dual_control": { "type": "boolean", "nullable": false, "default": true },
+        "created_by": { "type": "uuid", "nullable": false, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "last_rotated_at": { "type": "timestamptz", "nullable": true, "default": null },
+        "last_accessed_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["created_by"], "references": "auth.users(id)", "onDelete": "restrict" }
+      ],
+      "uniques": [
+        { "name": "secrets_key_env_key", "columns": ["key", "env"] }
+      ],
+      "indexes": [
+        { "name": "secrets_key_env_idx", "columns": ["key", "env"] }
+      ]
+    },
+    "public.secret_change_requests": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "key": { "type": "text", "nullable": false, "default": null },
+        "env": { "type": "text", "nullable": false, "default": "'prod'" },
+        "action": {
+          "type": "text",
+          "nullable": false,
+          "default": null,
+          "check": "action in ('create','rotate','reveal')"
+        },
+        "proposed_ciphertext": { "type": "bytea", "nullable": true, "default": null },
+        "proposed_iv": { "type": "bytea", "nullable": true, "default": null },
+        "proposed_aad": { "type": "text", "nullable": true, "default": null },
+        "reason": { "type": "text", "nullable": false, "default": null },
+        "requested_by": { "type": "uuid", "nullable": false, "default": null },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": "'pending'",
+          "check": "status in ('pending','approved','rejected','applied','expired')"
+        },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "applied_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["requested_by"], "references": "auth.users(id)", "onDelete": "restrict" }
+      ],
+      "indexes": [
+        { "name": "secret_change_requests_status_created_at_idx", "columns": ["status", "created_at"], "order": "desc" }
+      ]
+    },
+    "public.secret_change_approvals": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "request_id": { "type": "uuid", "nullable": false, "default": null },
+        "approver_user_id": { "type": "uuid", "nullable": false, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["request_id"], "references": "public.secret_change_requests(id)", "onDelete": "cascade" },
+        { "columns": ["approver_user_id"], "references": "auth.users(id)", "onDelete": "restrict" }
+      ],
+      "uniques": [
+        { "name": "secret_change_approvals_request_user_key", "columns": ["request_id", "approver_user_id"] }
+      ],
+      "indexes": [
+        { "name": "secret_change_approvals_request_idx", "columns": ["request_id"] }
+      ]
+    },
+    "public.app_settings": {
+      "columns": {
+        "key": { "type": "text", "nullable": false, "default": null },
+        "value": { "type": "jsonb", "nullable": false, "default": null },
+        "updated_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "updated_by": { "type": "uuid", "nullable": true, "default": null }
+      },
+      "primaryKey": ["key"],
+      "foreignKeys": [
+        { "columns": ["updated_by"], "references": "auth.users(id)", "onDelete": "set null" }
+      ]
+    },
+    "public.elevation_requests": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "requested_by": { "type": "uuid", "nullable": false, "default": null },
+        "target_user_id": { "type": "uuid", "nullable": false, "default": null },
+        "roles": { "type": "text[]", "nullable": false, "default": null },
+        "reason": { "type": "text", "nullable": false, "default": null },
+        "ticket_url": { "type": "text", "nullable": true, "default": null },
+        "window_minutes": { "type": "integer", "nullable": false, "default": 60 },
+        "status": {
+          "type": "text",
+          "nullable": false,
+          "default": "'pending'",
+          "check": "status in ('pending','approved','rejected','executed','expired','revoked')"
+        },
+        "executed_at": { "type": "timestamptz", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["requested_by"], "references": "auth.users(id)", "onDelete": "cascade" },
+        { "columns": ["target_user_id"], "references": "auth.users(id)", "onDelete": "cascade" }
+      ],
+      "indexes": [
+        { "name": "elevation_requests_status_created_at_idx", "columns": ["status", "created_at"], "order": "desc" }
+      ]
+    },
+    "public.elevation_approvals": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "request_id": { "type": "uuid", "nullable": false, "default": null },
+        "approver_user_id": { "type": "uuid", "nullable": false, "default": null },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" }
+      },
+      "primaryKey": ["id"],
+      "foreignKeys": [
+        { "columns": ["request_id"], "references": "public.elevation_requests(id)", "onDelete": "cascade" },
+        { "columns": ["approver_user_id"], "references": "auth.users(id)", "onDelete": "cascade" }
+      ],
+      "uniques": [
+        { "name": "elevation_approvals_request_user_key", "columns": ["request_id", "approver_user_id"] }
+      ]
+    },
+    "public.alerts": {
+      "columns": {
+        "id": { "type": "uuid", "nullable": false, "default": "gen_random_uuid()" },
+        "created_at": { "type": "timestamptz", "nullable": false, "default": "now()" },
+        "title": { "type": "text", "nullable": false, "default": null },
+        "severity": { "type": "text", "nullable": true, "default": null },
+        "source": { "type": "text", "nullable": true, "default": null },
+        "status": { "type": "text", "nullable": false, "default": "'open'" },
+        "owner_email": { "type": "text", "nullable": true, "default": null }
+      },
+      "primaryKey": ["id"],
+      "indexes": [
+        { "name": "alerts_status_created_at_idx", "columns": ["status", "created_at"], "order": "desc" }
+      ]
+    }
+  },
+  "views": {
+    "public.v_investigations_list": {
+      "columns": {
+        "id": "uuid",
+        "created_at": "timestamptz",
+        "updated_at": "timestamptz",
+        "title": "text",
+        "status": "text",
+        "severity": "text",
+        "summary": "text",
+        "tags": "text[]",
+        "opened_by": "uuid",
+        "opened_by_email": "text",
+        "opened_by_display_name": "text",
+        "assigned_to": "uuid",
+        "assigned_to_email": "text",
+        "assigned_to_display_name": "text"
+      }
+    },
+    "public.investigation_events_with_actor": {
+      "columns": {
+        "id": "uuid",
+        "investigation_id": "uuid",
+        "created_at": "timestamptz",
+        "actor_user_id": "uuid",
+        "kind": "text",
+        "message": "text",
+        "meta": "jsonb",
+        "actor_email": "text",
+        "actor_display_name": "text"
+      }
+    },
+    "public.release_requests_with_counts": {
+      "columns": {
+        "id": "uuid",
+        "title": "text",
+        "description": "text",
+        "requested_by": "uuid",
+        "status": "text",
+        "created_at": "timestamptz",
+        "last_decision_at": "timestamptz",
+        "approve_count": "bigint",
+        "reject_count": "bigint"
+      }
+    }
+  }
+}
