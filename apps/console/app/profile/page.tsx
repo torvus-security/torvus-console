@@ -1,56 +1,10 @@
-import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { ProfileForm, type ProfileFormState } from './ProfileForm';
 import { getStaffUser } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
-import type { SelfProfile } from '../../lib/self';
 import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
-
-type HeaderList = ReturnType<typeof headers>;
-
-async function loadSelfProfile(headerList: HeaderList): Promise<SelfProfile | null> {
-  const host = headerList.get('host');
-  if (!host) {
-    return null;
-  }
-
-  const protocol = headerList.get('x-forwarded-proto') ?? 'http';
-  const url = `${protocol}://${host}/api/self`;
-  const forwarded = new Headers();
-  const headerNames = [
-    'cookie',
-    'cf-access-authenticated-user-email',
-    'cf-access-jwt-assertion',
-    'cf-access-authenticated-user-sub',
-    'x-user-email'
-  ];
-
-  for (const name of headerNames) {
-    const value = headerList.get(name);
-    if (value) {
-      forwarded.set(name, value);
-    }
-  }
-
-  try {
-    const response = await fetch(url, { headers: forwarded, cache: 'no-store' });
-    if (response.status === 401) {
-      return null;
-    }
-
-    if (!response.ok) {
-      const message = await response.text();
-      throw new Error(message || 'failed to load profile');
-    }
-
-    return (await response.json()) as SelfProfile;
-  } catch (error) {
-    console.error('failed to load self profile via api', error);
-    return null;
-  }
-}
 
 async function saveProfileAction(
   _prevState: ProfileFormState,
@@ -110,11 +64,7 @@ async function saveProfileAction(
 }
 
 export default async function ProfilePage() {
-  const headerList = headers();
-  const [staffUser, selfProfile] = await Promise.all([
-    getStaffUser(),
-    loadSelfProfile(headerList)
-  ]);
+  const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
@@ -135,9 +85,9 @@ export default async function ProfilePage() {
         </div>
         <ProfileForm
           action={saveProfileAction}
-          initialDisplayName={selfProfile?.display_name ?? staffUser.displayName}
-          email={selfProfile?.email ?? staffUser.email}
-          roles={selfProfile?.roles ?? staffUser.roles}
+          initialDisplayName={staffUser.displayName}
+          email={staffUser.email}
+          roles={staffUser.roles}
           passkeyEnrolled={staffUser.passkeyEnrolled}
         />
       </section>
