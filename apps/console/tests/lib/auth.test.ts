@@ -2,24 +2,34 @@ import { describe, expect, it, vi } from 'vitest';
 import { getRequesterEmail, getUserRolesByEmail } from '../../lib/auth';
 
 describe('getRequesterEmail', () => {
-  it('resolves email from Cloudflare header and normalises casing', () => {
+  it('prefers authenticated staff header and normalises casing', () => {
     const request = new Request('https://example.com', {
       headers: {
-        'Cf-Access-Authenticated-User-Email': ' Admin@Example.com '
+        'x-authenticated-staff-email': ' Admin@Example.com '
       }
     });
 
     expect(getRequesterEmail(request)).toBe('admin@example.com');
   });
 
-  it('falls back to x-user-email header', () => {
+  it('falls back to session user header', () => {
     const request = new Request('https://example.com', {
       headers: {
-        'x-user-email': 'user@example.com'
+        'x-session-user-email': 'user@example.com'
       }
     });
 
     expect(getRequesterEmail(request)).toBe('user@example.com');
+  });
+
+  it('does not trust spoofed Cloudflare email header', () => {
+    const request = new Request('https://example.com', {
+      headers: {
+        'cf-access-authenticated-user-email': 'attacker@example.com'
+      }
+    });
+
+    expect(getRequesterEmail(request)).toBeNull();
   });
 
   it('returns null when no header present', () => {

@@ -9,6 +9,8 @@ export type PostgrestLikeOrSupabase = {
   from: (table: string) => unknown;
 };
 
+type MaybeRecord = Record<string, unknown>;
+
 function normaliseEmail(value: string | null | undefined): string | null {
   if (!value) {
     return null;
@@ -34,8 +36,8 @@ function getHeaderCaseInsensitive(headers: Headers, name: string): string | null
 export function getRequesterEmail(req: Request | NextRequest): string | null {
   const headers = req.headers;
   const email =
-    getHeaderCaseInsensitive(headers, 'cf-access-authenticated-user-email')
-    ?? getHeaderCaseInsensitive(headers, 'x-user-email');
+    getHeaderCaseInsensitive(headers, 'x-authenticated-staff-email')
+    ?? getHeaderCaseInsensitive(headers, 'x-session-user-email');
   return normaliseEmail(email);
 }
 
@@ -165,6 +167,8 @@ export class StaffAccessError extends Error {
   }
 }
 
+const FEATURE_REQUIRE_STAFF_SESSION = process.env.FEATURE_REQUIRE_STAFF_SESSION === 'true';
+
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
@@ -173,6 +177,14 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 
   if (data?.user) {
+    const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION
+      ? Boolean((data.user.user_metadata as MaybeRecord | undefined)?.is_staff)
+      : true;
+
+    if (!isStaffSession) {
+      return null;
+    }
+
     return {
       id: data.user.id,
       email: data.user.email ? data.user.email.toLowerCase() : null,
@@ -181,7 +193,8 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 
   // Fallback: trust Cloudflare Access (already authenticated before reaching us)
-  const cfEmail = getCfAccessEmail();
+  const allowCfFallback = !FEATURE_REQUIRE_STAFF_SESSION;
+  const cfEmail = allowCfFallback ? await getCfAccessEmail() : null;
   if (cfEmail) {
     // No Supabase id yet; resolve to a staff row by email in getStaffUser()
     return { id: null, email: cfEmail };
@@ -332,6 +345,11 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
 });
 
 export async function requireStaff(options?: { permission?: PermissionKey }): Promise<StaffUser> {
+  const sessionUser = await getSessionUser();
+  if (!sessionUser) {
+    throw new StaffAccessError('Authentication required', 401);
+  }
+
   const staffUser = await getStaffUser();
 
   if (!staffUser) {

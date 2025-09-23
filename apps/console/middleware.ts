@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { verifyCfAccessAssertion } from './lib/auth/cfAccess';
 import { buildReportToHeader, generateNonce } from './lib/security';
 
 type ReadOnlyState = {
@@ -18,6 +20,8 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const EXEMPT_PATH_PREFIXES = ['/api/admin/settings/read-only', '/api/breakglass/', '/api/auth/'];
 const READ_ONLY_CACHE_TTL_MS = 10_000;
 const ROLES_CACHE_TTL_MS = 10_000;
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/intake/', '/api/csp-report'];
+const FEATURE_REQUIRE_STAFF_SESSION = process.env.FEATURE_REQUIRE_STAFF_SESSION === 'true';
 
 type CachedValue<T> = {
   expiresAt: number;
@@ -32,7 +36,7 @@ const globalScope = globalThis as typeof globalThis & {
   __roleCache?: RoleCache;
 };
 
-function ensureEnv(name: 'SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE'): string {
+function ensureEnv(name: 'SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE' | 'SUPABASE_ANON_KEY'): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(`Missing required environment variable ${name}`);
@@ -62,6 +66,38 @@ function normaliseRoles(input: unknown): string[] {
 
 function shouldBypass(pathname: string): boolean {
   return EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isProtectedApiPath(pathname: string): boolean {
+  if (!pathname.startsWith('/api/')) {
+    return false;
+  }
+
+  return !PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function normaliseEmail(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
+
+function readAccessAssertion(request: NextRequest): string | null {
+  const headerAssertion =
+    request.headers.get('Cf-Access-Jwt-Assertion') ?? request.headers.get('cf-access-jwt-assertion');
+
+  if (headerAssertion && headerAssertion.trim()) {
+    return headerAssertion.trim();
+  }
+
+  const cookieToken = request.cookies.get('CF_Authorization')?.value;
+  if (cookieToken && cookieToken.trim()) {
+    return cookieToken.trim();
+  }
+
+  return null;
 }
 
 async function fetchReadOnlyState(): Promise<ReadOnlyState> {
@@ -174,23 +210,6 @@ async function loadRolesForEmail(email: string | null): Promise<string[]> {
   }
 }
 
-function getRequesterEmail(request: NextRequest): string | null {
-  const headers = request.headers;
-  const direct = headers.get('cf-access-authenticated-user-email') ?? headers.get('x-user-email');
-  if (direct) {
-    return direct.trim().toLowerCase();
-  }
-  for (const [name, value] of headers.entries()) {
-    if (name.toLowerCase() === 'cf-access-authenticated-user-email') {
-      return value.trim().toLowerCase();
-    }
-    if (name.toLowerCase() === 'x-user-email') {
-      return value.trim().toLowerCase();
-    }
-  }
-  return null;
-}
-
 function applyResponseHeaders(response: NextResponse, correlationId: string) {
   response.headers.set('x-correlation-id', correlationId);
   response.headers.set('Report-To', buildReportToHeader());
@@ -230,10 +249,109 @@ export async function middleware(request: NextRequest) {
   const method = request.method.toUpperCase();
   const isMutating = MUTATING_METHODS.has(method);
   const isApiRoute = pathname.startsWith('/api/');
+  const protectedApi = isProtectedApiPath(pathname);
+  const requireUiSession = FEATURE_REQUIRE_STAFF_SESSION && !isApiRoute;
+  const allowCfForRequest = protectedApi || !requireUiSession;
 
-  if (readOnly.enabled && isMutating && isApiRoute && !shouldBypass(pathname)) {
-    const email = getRequesterEmail(request);
-    const roles = await loadRolesForEmail(email);
+  const supabaseAuthResponse = NextResponse.next();
+
+  let authenticatedEmail: string | null = null;
+  let authenticatedMethod: 'supabase' | 'cf-access' | null = null;
+  let sessionUserId: string | null = null;
+
+  if (protectedApi || requireUiSession) {
+    try {
+      const supabase = createMiddlewareClient({ req: request, res: supabaseAuthResponse }, {
+        supabaseUrl: ensureEnv('SUPABASE_URL'),
+        supabaseKey: ensureEnv('SUPABASE_ANON_KEY')
+      });
+
+      const { data, error } = await supabase.auth.getUser();
+
+      if (error) {
+        console.error('[middleware][auth] failed to resolve Supabase session', error);
+      }
+
+      const user = data?.user ?? null;
+      if (user) {
+        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+        const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION ? Boolean(metadata.is_staff) : true;
+
+        if (isStaffSession) {
+          authenticatedEmail = normaliseEmail(user.email ?? null);
+          authenticatedMethod = 'supabase';
+          sessionUserId = user.id;
+        }
+      }
+    } catch (error) {
+      console.error('[middleware][auth] unexpected Supabase middleware failure', error);
+    }
+  }
+
+  if (!authenticatedEmail && allowCfForRequest) {
+    const assertion = readAccessAssertion(request);
+    if (assertion) {
+      const claims = await verifyCfAccessAssertion(assertion);
+      if (claims) {
+        const claimEmail = normaliseEmail(
+          (claims.email as string | undefined)
+            ?? (typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined)
+            ?? (typeof claims.name === 'string' ? claims.name : undefined)
+        );
+
+        if (claimEmail) {
+          authenticatedEmail = claimEmail;
+          authenticatedMethod = 'cf-access';
+        }
+      }
+    }
+  }
+
+  if (authenticatedEmail) {
+    requestHeaders.set('x-authenticated-staff-email', authenticatedEmail);
+    requestHeaders.set('x-authenticated-staff-method', authenticatedMethod ?? 'unknown');
+    if (sessionUserId) {
+      requestHeaders.set('x-session-user-id', sessionUserId);
+      requestHeaders.set('x-session-user-email', authenticatedEmail);
+    }
+  }
+
+  const supabaseCookies = supabaseAuthResponse.cookies.getAll();
+
+  if (protectedApi && !authenticatedEmail) {
+    const unauthorized = NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+    for (const cookie of supabaseCookies) {
+      unauthorized.cookies.set(cookie);
+    }
+    unauthorized.headers.set('x-read-only', String(readOnly.enabled));
+    unauthorized.headers.set('x-read-only-message', readOnly.message);
+    unauthorized.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
+    applyResponseHeaders(unauthorized, correlationId);
+    return unauthorized;
+  }
+
+  if (readOnly.enabled && isMutating && isApiRoute && protectedApi && !shouldBypass(pathname)) {
+    if (!authenticatedEmail) {
+      const response = NextResponse.json(
+        {
+          error: 'read_only',
+          message: readOnly.message
+        },
+        {
+          status: 503
+        }
+      );
+      for (const cookie of supabaseCookies) {
+        response.cookies.set(cookie);
+      }
+      response.headers.set('x-read-only', 'true');
+      response.headers.set('x-read-only-message', readOnly.message);
+      response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
+      applyResponseHeaders(response, correlationId);
+      return response;
+    }
+
+    const roles = await loadRolesForEmail(authenticatedEmail);
     const allowedSet = new Set(readOnly.allow_roles.map((role) => role.toLowerCase()));
     const allowed = roles.some((role) => allowedSet.has(role));
 
@@ -247,7 +365,9 @@ export async function middleware(request: NextRequest) {
           status: 503
         }
       );
-
+      for (const cookie of supabaseCookies) {
+        response.cookies.set(cookie);
+      }
       response.headers.set('x-read-only', 'true');
       response.headers.set('x-read-only-message', readOnly.message);
       response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
@@ -272,6 +392,10 @@ export async function middleware(request: NextRequest) {
         headers: requestHeaders
       }
     });
+  }
+
+  for (const cookie of supabaseCookies) {
+    response.cookies.set(cookie);
   }
 
   response.headers.set('x-read-only', String(readOnly.enabled));
