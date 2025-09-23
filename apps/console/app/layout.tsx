@@ -12,6 +12,7 @@ import '../styles/tokens.css';
 import '../styles/globals.css';
 import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
+import { formatBreadcrumb } from '../lib/breadcrumbs';
 import { IdentityPill } from '../components/IdentityPill';
 import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
@@ -137,7 +138,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <div className="content">
             {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
             <header className="topbar">
-              <div className="breadcrumbs">{pathname === '/' ? 'Overview' : pathname.replace('/', '').replace('-', ' ')}</div>
+              <div className="breadcrumbs">{formatBreadcrumb(pathname)}</div>
               <div className="topbar__meta" data-nonce={nonce}>
                 <IdentityPill displayName={staffUser.displayName} email={staffUser.email} roles={staffUser.roles} />
               </div>
