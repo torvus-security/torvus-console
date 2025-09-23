@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button, Callout, Card, Flex, Heading, Text, TextArea, TextField } from '@radix-ui/themes';
 
 type ReleaseRequestResponse = {
   request: {
@@ -64,62 +65,68 @@ export default function NewReleasePage() {
   return (
     <div className="page max-w-2xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white">New release request</h1>
-        <p className="mt-2 text-sm text-slate-300">
+        <Heading as="h1" size="6">
+          New release request
+        </Heading>
+        <Text size="2" color="gray" className="mt-2">
           Submit a request for the security admins to review and approve.
-        </p>
+        </Text>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-slate-700 bg-slate-900/50 p-6 shadow">
-        <div className="space-y-1">
-          <label htmlFor="title" className="block text-sm font-medium text-slate-200">
-            Title <span className="text-rose-400">*</span>
-          </label>
-          <input
-            id="title"
-            name="title"
-            type="text"
-            required
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none"
-          />
-        </div>
+      <Card size="5" className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Flex direction="column" gap="2">
+            <Text asChild size="2" weight="medium">
+              <label htmlFor="title">
+                Title{' '}
+                <Text as="span" color="crimson" weight="bold">
+                  *
+                </Text>
+              </label>
+            </Text>
+            <TextField.Root
+              id="title"
+              name="title"
+              required
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Release title"
+            />
+          </Flex>
 
-        <div className="space-y-1">
-          <label htmlFor="description" className="block text-sm font-medium text-slate-200">
-            Description
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            rows={6}
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white focus:border-emerald-400 focus:outline-none"
-          />
-          <p className="text-xs text-slate-400">Include rollout details, environment, and any caveats.</p>
-        </div>
+          <Flex direction="column" gap="2">
+            <Text asChild size="2" weight="medium">
+              <label htmlFor="description">Description</label>
+            </Text>
+            <TextArea
+              id="description"
+              name="description"
+              rows={6}
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              placeholder="Include rollout details, environment, and any caveats."
+            />
+            <Text size="1" color="gray">
+              Include rollout details, environment, and any caveats.
+            </Text>
+          </Flex>
 
-        {error && <p className="text-sm text-rose-400">{error}</p>}
+          {error ? (
+            <Callout.Root color="crimson" role="status">
+              <Callout.Text>{error}</Callout.Text>
+            </Callout.Root>
+          ) : null}
 
-        <div className="flex items-center gap-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400 disabled:opacity-60"
-          >
-            {submitting ? 'Submitting…' : 'Submit request'}
-          </button>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="text-sm font-medium text-slate-300 hover:text-slate-100"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
+          <Flex align="center" gap="3" wrap="wrap">
+            <Button type="submit" disabled={submitting}>
+              {submitting ? 'Submitting…' : 'Submit request'}
+            </Button>
+            <Button type="button" variant="ghost" color="indigo" onClick={() => router.back()}>
+              Cancel
+            </Button>
+          </Flex>
+        </form>
+      </Card>
     </div>
   );
 }

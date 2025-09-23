@@ -1,0 +1,11 @@
+/* Light scales apply to :root/.light/.light-theme */
+@import "@radix-ui/colors/crimson.css";
+@import "@radix-ui/colors/mauve.css";
+@import "@radix-ui/colors/indigo.css";
+@import "@radix-ui/colors/slate.css";
+
+/* Dark scales apply to .dark/.dark-theme or [data-theme="dark"] */
+@import "@radix-ui/colors/crimson-dark.css";
+@import "@radix-ui/colors/mauve-dark.css";
+@import "@radix-ui/colors/indigo-dark.css";
+@import "@radix-ui/colors/slate-dark.css";

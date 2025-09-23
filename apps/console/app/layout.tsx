@@ -5,6 +5,9 @@ import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
 import clsx from 'clsx';
+import '@radix-ui/themes/styles.css';
+import { Theme } from '@radix-ui/themes';
+import '../design/radix-colors.css';
 import '../styles/tokens.css';
 import '../styles/globals.css';
 import { getStaffUser } from '../lib/auth';
@@ -37,7 +40,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <AccessDeniedNotice />
+          <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+            <AccessDeniedNotice />
+          </Theme>
         </body>
       </html>
     );
@@ -59,7 +64,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+          <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+            <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+          </Theme>
         </body>
       </html>
     );
@@ -92,50 +99,54 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-theme="torvus-staff">
       <body data-correlation={correlationId} className="layout-shell">
-        <aside className="sidebar" aria-label="Primary">
-          <div className="sidebar__brand">
-            <span className="brand-mark" aria-hidden>⚡</span>
-            <span className="brand-text">Torvus Console</span>
-          </div>
-          <nav>
-            {navGroups.map((group) => (
-              <div key={group.group} className="nav-group">
-                <div className="nav-group__label">{group.group}</div>
-                <ul>
-                  {group.items.map((item) => (
-                    <li key={item.href}>
-                      <Link
-                        href={item.href}
-                        className={clsx('nav-link', {
-                          active:
-                            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-                        })}
-                      >
-                        {item.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </nav>
-          <footer>
-            <span className="staff-name">{staffUser.displayName}</span>
-            <span className="staff-email">{staffUser.email}</span>
-          </footer>
-        </aside>
-        <div className="content">
-          {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
-          <header className="topbar">
-            <div className="breadcrumbs">{pathname === '/' ? 'Overview' : pathname.replace('/', '').replace('-', ' ')}</div>
-            <div className="topbar__meta" data-nonce={nonce}>
-              <IdentityPill displayName={staffUser.displayName} email={staffUser.email} roles={staffUser.roles} />
+        <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+          <aside className="sidebar" aria-label="Primary">
+            <div className="sidebar__brand">
+              <span className="brand-mark" aria-hidden>
+                ⚡
+              </span>
+              <span className="brand-text">Torvus Console</span>
             </div>
-          </header>
-          <main className="main" data-testid="main-content">
-            <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
-          </main>
-        </div>
+            <nav>
+              {navGroups.map((group) => (
+                <div key={group.group} className="nav-group">
+                  <div className="nav-group__label">{group.group}</div>
+                  <ul>
+                    {group.items.map((item) => (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          className={clsx('nav-link', {
+                            active:
+                              pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+                          })}
+                        >
+                          {item.label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </nav>
+            <footer>
+              <span className="staff-name">{staffUser.displayName}</span>
+              <span className="staff-email">{staffUser.email}</span>
+            </footer>
+          </aside>
+          <div className="content">
+            {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
+            <header className="topbar">
+              <div className="breadcrumbs">{pathname === '/' ? 'Overview' : pathname.replace('/', '').replace('-', ' ')}</div>
+              <div className="topbar__meta" data-nonce={nonce}>
+                <IdentityPill displayName={staffUser.displayName} email={staffUser.email} roles={staffUser.roles} />
+              </div>
+            </header>
+            <main className="main" data-testid="main-content">
+              <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+            </main>
+          </div>
+        </Theme>
       </body>
     </html>
   );

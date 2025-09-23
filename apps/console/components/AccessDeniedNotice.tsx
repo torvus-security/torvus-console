@@ -1,4 +1,7 @@
+"use client";
+
 import clsx from 'clsx';
+import { Card, Flex, Heading, Text } from '@radix-ui/themes';
 
 export type AccessDeniedNoticeProps = {
   variant?: 'full' | 'card';
@@ -8,17 +11,21 @@ export type AccessDeniedNoticeProps = {
 export function AccessDeniedNotice({ variant = 'full', className }: AccessDeniedNoticeProps) {
   if (variant === 'card') {
     return (
-      <div
-        className={clsx(
-          'flex flex-col items-center justify-center gap-3 rounded-3xl border border-slate-700 bg-slate-900/60 p-12 text-center text-slate-100 shadow-xl',
-          className
-        )}
+      <Card
+        size="4"
+        variant="surface"
+        className={clsx('access-denied-card', className)}
+        data-testid="access-denied-card"
       >
-        <h1 className="text-2xl font-semibold text-slate-100">Access denied</h1>
-        <p className="text-sm text-slate-400">
-          Torvus Console is restricted to enrolled staff. Contact Security Operations.
-        </p>
-      </div>
+        <Flex direction="column" align="center" gap="3">
+          <Heading as="h1" size="4">
+            Access denied
+          </Heading>
+          <Text size="2" color="gray" align="center">
+            Torvus Console is restricted to enrolled staff. Contact Security Operations.
+          </Text>
+        </Flex>
+      </Card>
     );
   }
 
