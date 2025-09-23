@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@radix-ui/themes';
 import { useActionState } from 'react';
 import type { EnrollmentState } from './types';
 
@@ -34,9 +35,9 @@ export function EnrollmentForm({
           <input type="checkbox" name="requestTotp" disabled={pending} />
           <span>Request TOTP fallback (requires security_admin approval).</span>
         </label>
-        <button type="submit" className="button primary" disabled={pending}>
+        <Button type="submit" disabled={pending}>
           {pending ? 'Enrolling…' : 'Begin enrollment'}
-        </button>
+        </Button>
       </form>
       <div className={state.ok ? 'enroll-result success' : 'enroll-result'} role="status">
         <strong>{state.ok ? 'Enrollment complete' : 'Action required'}</strong>
