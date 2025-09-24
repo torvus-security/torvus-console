@@ -95,7 +95,6 @@ export async function evaluateAccessGate(
       )`
     )
     .eq('email', email)
-    .is('staff_role_members.valid_to', null)
     .maybeSingle();
 
   const { data, error } = (await query) as {
@@ -116,13 +115,23 @@ export async function evaluateAccessGate(
     passkey_enrolled: Boolean(staffRow?.passkey_enrolled)
   };
 
+  const now = Date.now();
+
   const memberships = (staffRow?.staff_role_members ?? []).filter((membership) => {
     if (!membership) {
       return false;
     }
 
     if (membership.valid_to) {
-      return false;
+      const validTo = new Date(membership.valid_to);
+
+      if (Number.isNaN(validTo.getTime())) {
+        return false;
+      }
+
+      if (validTo.getTime() < now) {
+        return false;
+      }
     }
 
     return Boolean(membership.role_id);
