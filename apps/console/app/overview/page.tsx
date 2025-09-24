@@ -291,51 +291,67 @@ export default async function OverviewPage() {
               <dl>
                 <Grid columns={{ initial: '1', sm: '2' }} gap="3">
                   <Flex direction="column" gap="1">
-                    <Box as="dt">
-                      <Text as="span" size="2" color="gray">
-                        Environment
-                      </Text>
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Environment
+                        </Text>
+                      </dt>
                     </Box>
-                    <Box as="dd">
-                      <Text as="span" size="3">
-                        {process.env.NODE_ENV}
-                      </Text>
-                    </Box>
-                  </Flex>
-                  <Flex direction="column" gap="1">
-                    <Box as="dt">
-                      <Text as="span" size="2" color="gray">
-                        Feature flag
-                      </Text>
-                    </Box>
-                    <Box as="dd">
-                      <Text as="span" size="3">
-                        {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
-                      </Text>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.NODE_ENV}
+                        </Text>
+                      </dd>
                     </Box>
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Box as="dt">
-                      <Text as="span" size="2" color="gray">
-                        Supabase project
-                      </Text>
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Feature flag
+                        </Text>
+                      </dt>
                     </Box>
-                    <Box as="dd">
-                      <Text as="span" size="3">
-                        {process.env.SUPABASE_URL ?? 'unset'}
-                      </Text>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
+                        </Text>
+                      </dd>
                     </Box>
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Box as="dt">
-                      <Text as="span" size="2" color="gray">
-                        Correlation ID
-                      </Text>
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Supabase project
+                        </Text>
+                      </dt>
                     </Box>
-                    <Box as="dd">
-                      <Text as="span" size="3">
-                        {correlationId}
-                      </Text>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.SUPABASE_URL ?? 'unset'}
+                        </Text>
+                      </dd>
+                    </Box>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Correlation ID
+                        </Text>
+                      </dt>
+                    </Box>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {correlationId}
+                        </Text>
+                      </dd>
                     </Box>
                   </Flex>
                 </Grid>
