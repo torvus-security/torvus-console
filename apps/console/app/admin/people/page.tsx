@@ -1,5 +1,11 @@
+import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
+import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
+import { AppShell } from '../../../components/AppShell';
+import { Sidebar } from '../../../components/Sidebar';
+import { PageHeader } from '../../../components/PageHeader';
+import { InviteStaffButton } from '../../../components/actions/InviteStaffButton';
 import { PeopleTable, type AdminPersonRecord } from '../../../components/admin/PeopleTable';
 import { getStaffUser } from '../../../lib/auth';
 
@@ -49,7 +55,13 @@ export default async function AdminPeoplePage() {
   const staffUser = await getStaffUser();
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
 
   const headerBag = headers();
@@ -71,19 +83,76 @@ export default async function AdminPeoplePage() {
     ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
-  const { status, people } = await fetchPeople(baseUrl, headerEmail);
+  let peopleResult: FetchPeopleResult;
 
-  if (status === 401 || status === 403) {
-    return <AccessDeniedNotice />;
+  try {
+    peopleResult = await fetchPeople(baseUrl, headerEmail);
+  } catch (error) {
+    console.error('failed to load staff directory', error);
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <PageHeader
+          title="People"
+          subtitle="Security administrators enrolled in Torvus Console."
+          actions={(
+            <Flex align="center" gap="3" wrap="wrap">
+              <Text size="2" color="gray">
+                Signed in as {staffUser.displayName} ({staffUser.email})
+              </Text>
+              <InviteStaffButton />
+            </Flex>
+          )}
+        />
+        <Callout.Root color="crimson" role="alert">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Callout.Text>Unable to load the staff directory. Try again shortly.</Callout.Text>
+            <Button color="crimson" variant="soft" asChild>
+              <Link href="/admin/people">Retry</Link>
+            </Button>
+          </Flex>
+        </Callout.Root>
+      </AppShell>
+    );
   }
 
-  if (!people) {
-    throw new Error('People payload missing');
+  if (peopleResult.status === 401 || peopleResult.status === 403 || !peopleResult.people) {
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
+
+  const people = peopleResult.people;
+  const headerActions = (
+    <Flex align="center" gap="3" wrap="wrap">
+      <Text size="2" color="gray">
+        Signed in as {staffUser.displayName} ({staffUser.email})
+      </Text>
+      <InviteStaffButton />
+    </Flex>
+  );
 
   return (
-    <div className="page">
-      <PeopleTable people={people} />
-    </div>
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        title="People"
+        subtitle="Security administrators enrolled in Torvus Console."
+        actions={headerActions}
+      />
+
+      {people.length === 0 ? (
+        <Callout.Root color="gray" role="status">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Callout.Text>No staff have been added yet. Invite a teammate to get started.</Callout.Text>
+            <InviteStaffButton />
+          </Flex>
+        </Callout.Root>
+      ) : (
+        <PeopleTable people={people} />
+      )}
+    </AppShell>
   );
 }

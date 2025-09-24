@@ -1,10 +1,15 @@
+import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
+import { Box, Button, Flex, Text } from '@radix-ui/themes';
 import { ProfileForm, type ProfileFormState } from './ProfileForm';
 import { getStaffUser } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
+import { AppShell } from '../../components/AppShell';
+import { Sidebar } from '../../components/Sidebar';
+import { PageHeader } from '../../components/PageHeader';
 
 async function saveProfileAction(
   _prevState: ProfileFormState,
@@ -68,30 +73,43 @@ export default async function ProfilePage() {
 
   if (!staffUser) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
-      </div>
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice variant="card" />
+        </Box>
+      </AppShell>
     );
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
-        <div className="mb-8 flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold text-slate-100">Profile &amp; access</h1>
-          <p className="text-sm text-slate-400">
-            Manage how your identity appears across audit trails and console workflows.
-          </p>
-        </div>
-        <ProfileForm
-          action={saveProfileAction}
-          initialDisplayName={staffUser.displayName}
-          email={staffUser.email}
-          roles={staffUser.roles}
-          passkeyEnrolled={staffUser.passkeyEnrolled}
-        />
-      </section>
-      <PersonalAccessTokensPanel />
-    </div>
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        title="Profile"
+        subtitle="Manage how your identity appears across audit trails and console workflows."
+        actions={(
+          <Flex align="center" gap="3" wrap="wrap">
+            <Text size="2" color="gray">
+              Signed in as {staffUser.displayName} ({staffUser.email})
+            </Text>
+            <Button color="iris" asChild>
+              <Link href="/tokens">Manage tokens</Link>
+            </Button>
+          </Flex>
+        )}
+      />
+
+      <Flex direction="column" gap="5">
+        <Box className="rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
+          <ProfileForm
+            action={saveProfileAction}
+            initialDisplayName={staffUser.displayName}
+            email={staffUser.email}
+            roles={staffUser.roles}
+            passkeyEnrolled={staffUser.passkeyEnrolled}
+          />
+        </Box>
+        <PersonalAccessTokensPanel />
+      </Flex>
+    </AppShell>
   );
 }

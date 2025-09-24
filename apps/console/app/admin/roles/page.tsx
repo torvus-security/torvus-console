@@ -1,5 +1,11 @@
+import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
+import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
+import { AppShell } from '../../../components/AppShell';
+import { Sidebar } from '../../../components/Sidebar';
+import { PageHeader } from '../../../components/PageHeader';
+import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { RoleManager, type RoleMemberRecord } from '../../../components/admin/RoleManager';
 import { getStaffUser } from '../../../lib/auth';
 
@@ -60,7 +66,13 @@ export default async function AdminRolesPage() {
   const staffUser = await getStaffUser();
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
 
   const headerBag = headers();
@@ -82,19 +94,67 @@ export default async function AdminRolesPage() {
     ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
-  const { status, data } = await fetchRoles(baseUrl, headerEmail);
+  let rolesResult: FetchRolesResult;
 
-  if (status === 401 || status === 403) {
-    return <AccessDeniedNotice />;
+  try {
+    rolesResult = await fetchRoles(baseUrl, headerEmail);
+  } catch (error) {
+    console.error('failed to load roles', error);
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <PageHeader
+          title="Roles"
+          subtitle="Manage privileged assignments for staff."
+          actions={(
+            <Flex align="center" gap="3" wrap="wrap">
+              <Text size="2" color="gray">
+                Signed in as {staffUser.displayName} ({staffUser.email})
+              </Text>
+              <ScrollToSectionButton targetId="assign-role" label="Assign role" />
+            </Flex>
+          )}
+        />
+        <Callout.Root color="crimson" role="alert">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Callout.Text>Unable to load role assignments. Try again shortly.</Callout.Text>
+            <Button color="crimson" variant="soft" asChild>
+              <Link href="/admin/roles">Retry</Link>
+            </Button>
+          </Flex>
+        </Callout.Root>
+      </AppShell>
+    );
   }
 
-  if (!data) {
-    throw new Error('Roles payload missing');
+  if (rolesResult.status === 401 || rolesResult.status === 403 || !rolesResult.data) {
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
+
+  const data = rolesResult.data;
+  const headerActions = (
+    <Flex align="center" gap="3" wrap="wrap">
+      <Text size="2" color="gray">
+        Signed in as {staffUser.displayName} ({staffUser.email})
+      </Text>
+      <ScrollToSectionButton targetId="assign-role" label="Assign role" />
+    </Flex>
+  );
 
   return (
-    <div className="page">
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        title="Roles"
+        subtitle="Manage privileged assignments for staff."
+        actions={headerActions}
+      />
+
       <RoleManager roles={data.roles} members={data.members} />
-    </div>
+    </AppShell>
   );
 }

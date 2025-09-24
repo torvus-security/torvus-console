@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { AuditMetaDetails } from '../../components/AuditMetaDetails';
 
@@ -59,6 +59,7 @@ type AuditClientProps = {
   availableActions: string[];
   availableTargetTypes: string[];
   pageSize: number;
+  renderHeader?: (exportUrl: string) => ReactNode;
 };
 
 function formatDateInput(value: string | null): string {
@@ -213,7 +214,8 @@ export function AuditClient({
   defaultFilters,
   availableActions,
   availableTargetTypes,
-  pageSize
+  pageSize,
+  renderHeader
 }: AuditClientProps) {
   const [filters, setFilters] = useState<FiltersState>({ ...defaultFilters });
   const [events, setEvents] = useState<AuditEvent[]>(initialEvents);
@@ -370,15 +372,21 @@ export function AuditClient({
   return (
     <div className="audit-ledger">
       <div className="panel__header">
-        <div>
-          <h1 id="audit-heading">Audit trail</h1>
-          <p className="muted">Time-ordered ledger of privileged console activity.</p>
-        </div>
-        <div className="audit-actions">
-          <a className="button secondary" href={exportUrl} rel="noopener noreferrer">
-            Export CSV
-          </a>
-        </div>
+        {renderHeader ? (
+          renderHeader(exportUrl)
+        ) : (
+          <>
+            <div>
+              <h1 id="audit-heading">Audit trail</h1>
+              <p className="muted">Time-ordered ledger of privileged console activity.</p>
+            </div>
+            <div className="audit-actions">
+              <a className="button secondary" href={exportUrl} rel="noopener noreferrer">
+                Export CSV
+              </a>
+            </div>
+          </>
+        )}
       </div>
 
       <form className="audit-filters" onSubmit={(event) => event.preventDefault()}>

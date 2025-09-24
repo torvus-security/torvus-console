@@ -228,17 +228,12 @@ export function RoleManager({ roles, members }: RoleManagerProps) {
 
   return (
     <section className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-slate-100">Role assignments</h1>
-          <p className="text-sm text-slate-400">
-            Manage privileged roles for Torvus staff. Roles determine access to sensitive console features.
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-400">Filter members by email or name.</p>
         <label
           className={clsx(
             'flex w-full items-center gap-2 rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-200 focus-within:border-slate-500',
-            'lg:w-auto'
+            'sm:w-auto'
           )}
         >
           <span className="sr-only">Filter staff</span>
@@ -317,7 +312,11 @@ export function RoleManager({ roles, members }: RoleManagerProps) {
           </table>
         </div>
 
-        <aside className="flex flex-col gap-4 rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6">
+        <aside
+          id="assign-role"
+          tabIndex={-1}
+          className="flex flex-col gap-4 rounded-2xl border border-slate-800/70 bg-slate-950/60 p-6"
+        >
           <div>
             <h2 className="text-lg font-semibold text-slate-100">Assign role</h2>
             <p className="text-xs text-slate-400">Select a staff member and assign an available role.</p>
