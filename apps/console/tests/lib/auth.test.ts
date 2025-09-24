@@ -41,28 +41,43 @@ describe('getRequesterEmail', () => {
 
 describe('getUserRolesByEmail', () => {
   it('returns sorted unique role names', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2024-01-01T00:00:00Z'));
+
     const maybeSingle = vi.fn(async () => ({
       data: {
         staff_role_members: [
-          { staff_roles: { name: 'security_admin' } },
-          { staff_roles: { name: 'investigator' } },
-          { staff_roles: { name: 'security_admin' } }
+          {
+            staff_roles: { name: 'security_admin' },
+            role_id: '1',
+            valid_to: '2024-01-02T00:00:00Z'
+          },
+          { staff_roles: { name: 'investigator' }, role_id: '2', valid_to: null },
+          {
+            staff_roles: { name: 'security_admin' },
+            role_id: '1',
+            valid_to: '2023-12-31T23:00:00Z'
+          }
         ]
       },
       error: null
     }));
 
     const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq }));
+    const select = vi.fn(() => ({ eq, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];
 
-    const roles = await getUserRolesByEmail('Admin@Example.com', client);
+    try {
+      const roles = await getUserRolesByEmail('Admin@Example.com', client);
 
-    expect(from).toHaveBeenCalledWith('staff_users');
-    expect(eq).toHaveBeenCalledWith('email', 'admin@example.com');
-    expect(roles).toEqual(['investigator', 'security_admin']);
+      expect(from).toHaveBeenCalledWith('staff_users');
+      expect(eq).toHaveBeenCalledWith('email', 'admin@example.com');
+      expect(roles).toEqual(['investigator', 'security_admin']);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('returns empty array when email missing', async () => {
@@ -77,8 +92,9 @@ describe('getUserRolesByEmail', () => {
 
   it('returns empty array when record not found', async () => {
     const maybeSingle = vi.fn(async () => ({ data: null, error: { code: 'PGRST116' } }));
-    const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq }));
+    const isFn = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ is: isFn, maybeSingle }));
+    const select = vi.fn(() => ({ eq, is: isFn, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];

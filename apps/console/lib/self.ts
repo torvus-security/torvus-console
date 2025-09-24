@@ -1,5 +1,6 @@
-import { getRequesterEmail, getUserRolesByEmail } from './auth';
+import { getRequesterEmail } from './auth';
 import { createSupabaseServiceRoleClient } from './supabase';
+import { evaluateAccessGate } from './authz/gate';
 
 export type SelfProfile = {
   user_id: string;
@@ -15,39 +16,16 @@ export async function getSelf(request: Request): Promise<SelfProfile | null> {
   }
 
   const supabase = createSupabaseServiceRoleClient();
+  const evaluation = await evaluateAccessGate(email, { client: supabase });
 
-  type StaffRow = {
-    user_id: string;
-    email: string;
-    display_name: string | null;
-  } | null;
-
-  const { data, error } = await (supabase.from('staff_users') as any)
-    .select('user_id, email, display_name')
-    .eq('email', email)
-    .maybeSingle();
-
-  if (error) {
-    console.error('failed to resolve self profile', error);
-    throw error;
-  }
-
-  if (!data) {
+  if (!evaluation.userId) {
     return null;
   }
 
-  let roles: string[] = [];
-  try {
-    roles = await getUserRolesByEmail(email, supabase);
-  } catch (roleError) {
-    console.error('failed to resolve self roles', roleError);
-    throw roleError;
-  }
-
   return {
-    user_id: data.user_id,
-    email: data.email.toLowerCase(),
-    display_name: data.display_name ?? data.email,
-    roles
+    user_id: evaluation.userId,
+    email: evaluation.email,
+    display_name: evaluation.displayName ?? evaluation.email,
+    roles: evaluation.roles
   };
 }
