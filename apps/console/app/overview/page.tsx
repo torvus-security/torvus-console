@@ -1,7 +1,15 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import clsx from 'clsx';
-import { Text } from '@radix-ui/themes';
+import {
+  Box,
+  Button,
+  Callout,
+  Card,
+  Flex,
+  Grid,
+  Heading,
+  Text
+} from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
 import { countAlerts } from '../../lib/data/alerts';
@@ -60,6 +68,18 @@ function formatDate(timestamp: string | null) {
   });
 }
 
+function formatReleaseStatus(status: string) {
+  const normalized = status.replace(/_/g, ' ').trim();
+  if (!normalized) {
+    return 'Unknown';
+  }
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function StatuspageEmbed({ correlationId }: { correlationId: string }) {
   const embedUrl = process.env.NEXT_PUBLIC_STATUSPAGE_URL
     ?? (process.env.NEXT_PUBLIC_STATUSPAGE_PAGE_ID
@@ -67,31 +87,56 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
 
   if (!embedUrl) {
     return (
-      <section className="panel" aria-labelledby="statuspage-heading">
-        <div className="panel__header">
-          <h2 id="statuspage-heading">Statuspage</h2>
-          <span className="tag subtle">Not configured</span>
-        </div>
-        <p className="muted">Set NEXT_PUBLIC_STATUSPAGE_PAGE_ID to embed the production status page.</p>
-      </section>
+      <Card size="3" aria-labelledby="statuspage-heading">
+        <Flex direction="column" gap="3">
+          <Box>
+            <Heading as="h2" id="statuspage-heading" size="3">
+              Statuspage
+            </Heading>
+            <Text size="2" color="gray" mt="1">
+              Not configured
+            </Text>
+          </Box>
+          <Callout.Root color="gray" role="status">
+            <Callout.Text>
+              Set NEXT_PUBLIC_STATUSPAGE_PAGE_ID to embed the production status page.
+            </Callout.Text>
+          </Callout.Root>
+        </Flex>
+      </Card>
     );
   }
 
   return (
-    <section className="panel" aria-labelledby="statuspage-heading">
-      <div className="panel__header">
-        <h2 id="statuspage-heading">Statuspage</h2>
-      </div>
-      <iframe
-        src={`${embedUrl}/embed/status`}
-        title="Torvus Statuspage"
-        sandbox="allow-same-origin allow-scripts allow-popups"
-        loading="lazy"
-        referrerPolicy="no-referrer"
-        className="iframe-status"
-        data-correlation={correlationId}
-      />
-    </section>
+    <Card size="3" aria-labelledby="statuspage-heading">
+      <Flex direction="column" gap="3">
+        <Box>
+          <Heading as="h2" id="statuspage-heading" size="3">
+            Statuspage
+          </Heading>
+          <Text size="2" color="gray" mt="1">
+            Live platform status from the public page.
+          </Text>
+        </Box>
+        <Box
+          style={{
+            borderRadius: 'var(--radius-3)',
+            overflow: 'hidden',
+            border: '1px solid var(--gray-5)'
+          }}
+        >
+          <iframe
+            src={`${embedUrl}/embed/status`}
+            title="Torvus Statuspage"
+            sandbox="allow-same-origin allow-scripts allow-popups"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            style={{ width: '100%', minHeight: 240, border: '0' }}
+            data-correlation={correlationId}
+          />
+        </Box>
+      </Flex>
+    </Card>
   );
 }
 
@@ -110,8 +155,6 @@ export default async function OverviewPage() {
     activeAlerts,
     openInvestigations
   };
-
-  const isSecurityAdmin = staffUser.roles.some((role) => role.toLowerCase() === 'security_admin');
 
   const analytics = getAnalyticsClient();
   analytics.capture('staff_console_viewed', {
@@ -142,86 +185,181 @@ export default async function OverviewPage() {
           </Text>
         )}
       />
-      <div className="page">
-        <div className="cards">
-          <article className="card">
-            <header>
-              <h2>Active alerts</h2>
-              <span className="metric">{mergedStats.activeAlerts}</span>
-            </header>
-            <p className="muted">Alerts open across Torvus platform services.</p>
-          </article>
-          <article className="card">
-            <header>
-              <h2>Open investigations</h2>
-              <span className="metric">{mergedStats.openInvestigations}</span>
-            </header>
-            <p className="muted">Endpoint triage items assigned to Console operators.</p>
-          </article>
-          <article className="card">
-            <header>
-              <h2>Release train</h2>
-              <span className={clsx('metric', mergedStats.releaseTrainStatus)}>{mergedStats.releaseTrainStatus}</span>
-            </header>
-            <p className="muted">Release execution remains feature-flagged pending dual-control validation.</p>
-            <Link
-              href="/releases"
-              className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
-            >
-              View release requests →
-            </Link>
-          </article>
-          <article className="card">
-            <header>
-              <h2>Last incident</h2>
-              <span className="metric">{formatDate(mergedStats.lastIncidentAt)}</span>
-            </header>
-            <p className="muted">UTC timestamp, pulled from audit trail for evidence parity.</p>
-          </article>
-          {isSecurityAdmin && (
-            <article className="card">
-              <header>
-                <h2>Admin</h2>
-              </header>
-              <p className="muted">Manage people &amp; roles.</p>
-              <Link
-                href="/admin/people"
-                className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
-              >
-                Open admin tools →
-              </Link>
-            </article>
-          )}
-        </div>
 
-        <div className="grid-two">
-          <StatuspageEmbed correlationId={correlationId} />
-          <section className="panel" aria-labelledby="system-heading">
-            <div className="panel__header">
-              <h2 id="system-heading">System signals</h2>
-              <span className="tag subtle">Read only</span>
-            </div>
-            <dl className="kv">
-              <div>
-                <dt>Environment</dt>
-                <dd>{process.env.NODE_ENV}</dd>
-              </div>
-              <div>
-                <dt>Feature flag</dt>
-                <dd>{process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}</dd>
-              </div>
-              <div>
-                <dt>Supabase project</dt>
-                <dd>{process.env.SUPABASE_URL ?? 'unset'}</dd>
-              </div>
-              <div>
-                <dt>Correlation ID</dt>
-                <dd>{correlationId}</dd>
-              </div>
-            </dl>
-          </section>
-        </div>
-      </div>
+      <Grid
+        columns={{ initial: '1', sm: '2', lg: '4' }}
+        gap={{ initial: '3', sm: '4' }}
+        width="100%"
+      >
+        <Card size="3">
+          <Flex direction="column" gap="3">
+            <Box>
+              <Heading as="h2" size="3">
+                Active alerts
+              </Heading>
+              <Text size="2" color="gray" mt="1">
+                Alerts open across Torvus platform services.
+              </Text>
+            </Box>
+            {mergedStats.activeAlerts > 0 ? (
+              <Text size="6" weight="medium">
+                {mergedStats.activeAlerts} active {mergedStats.activeAlerts === 1 ? 'alert' : 'alerts'}
+              </Text>
+            ) : (
+              <Callout.Root color="gray" role="status">
+                <Callout.Text>No alerts yet</Callout.Text>
+              </Callout.Root>
+            )}
+          </Flex>
+        </Card>
+
+        <Card size="3">
+          <Flex direction="column" gap="3">
+            <Box>
+              <Heading as="h2" size="3">
+                Open investigations
+              </Heading>
+              <Text size="2" color="gray" mt="1">
+                Endpoint triage items assigned to Console operators.
+              </Text>
+            </Box>
+            {mergedStats.openInvestigations > 0 ? (
+              <Text size="6" weight="medium">
+                {mergedStats.openInvestigations} open {mergedStats.openInvestigations === 1 ? 'investigation' : 'investigations'}
+              </Text>
+            ) : (
+              <Text size="3" color="gray">
+                None
+              </Text>
+            )}
+          </Flex>
+        </Card>
+
+        <Card size="3">
+          <Flex direction="column" gap="3">
+            <Box>
+              <Heading as="h2" size="3">
+                Release train
+              </Heading>
+              <Text size="2" color="gray" mt="1">
+                Release execution remains feature-flagged pending dual-control validation.
+              </Text>
+            </Box>
+            <Flex direction="column" gap="3">
+              <Text size="3" weight="medium">
+                {formatReleaseStatus(mergedStats.releaseTrainStatus)}
+              </Text>
+              <Button asChild variant="surface">
+                <Link href="/releases">
+                  Go to Releases
+                </Link>
+              </Button>
+            </Flex>
+          </Flex>
+        </Card>
+
+        <Card size="3">
+          <Flex direction="column" gap="3">
+            <Box>
+              <Heading as="h2" size="3">
+                Last incident
+              </Heading>
+              <Text size="2" color="gray" mt="1">
+                UTC timestamp pulled from audit trail for evidence parity.
+              </Text>
+            </Box>
+            <Text size="3" weight="medium">
+              {formatDate(mergedStats.lastIncidentAt)}
+            </Text>
+          </Flex>
+        </Card>
+      </Grid>
+
+      <Grid columns={{ initial: '1', lg: '2' }} gap={{ initial: '4', lg: '5' }} mt="6">
+        <StatuspageEmbed correlationId={correlationId} />
+        <Card size="3" aria-labelledby="system-heading">
+          <Flex direction="column" gap="3">
+            <Box>
+              <Heading as="h2" id="system-heading" size="3">
+                System signals
+              </Heading>
+              <Text size="2" color="gray" mt="1">
+                Read only
+              </Text>
+            </Box>
+            <Box asChild>
+              <dl>
+                <Grid columns={{ initial: '1', sm: '2' }} gap="3">
+                  <Flex direction="column" gap="1">
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Environment
+                        </Text>
+                      </dt>
+                    </Box>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.NODE_ENV}
+                        </Text>
+                      </dd>
+                    </Box>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Feature flag
+                        </Text>
+                      </dt>
+                    </Box>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
+                        </Text>
+                      </dd>
+                    </Box>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Supabase project
+                        </Text>
+                      </dt>
+                    </Box>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {process.env.SUPABASE_URL ?? 'unset'}
+                        </Text>
+                      </dd>
+                    </Box>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Box asChild>
+                      <dt>
+                        <Text as="span" size="2" color="gray">
+                          Correlation ID
+                        </Text>
+                      </dt>
+                    </Box>
+                    <Box asChild>
+                      <dd>
+                        <Text as="span" size="3">
+                          {correlationId}
+                        </Text>
+                      </dd>
+                    </Box>
+                  </Flex>
+                </Grid>
+              </dl>
+            </Box>
+          </Flex>
+        </Card>
+      </Grid>
     </AppShell>
   );
 }
