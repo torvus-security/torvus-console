@@ -2,61 +2,31 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
-import { Box, Flex, Separator, Text } from '@radix-ui/themes';
+import { Box, Flex, Text } from '@radix-ui/themes';
 
-type NavItem = {
+export type SidebarNavItem = {
   label: string;
   href: string;
-  match?: 'exact' | 'startsWith';
 };
 
-const NAV_SECTIONS: Array<{ title: string; items: NavItem[] }> = [
-  {
-    title: 'Operations',
-    items: [
-      { label: 'Overview', href: '/overview', match: 'startsWith' },
-      { label: 'Alerts', href: '/alerts', match: 'startsWith' },
-      { label: 'Releases', href: '/releases', match: 'startsWith' }
-    ]
-  },
-  {
-    title: 'Security',
-    items: [{ label: 'Audit trail', href: '/audit', match: 'startsWith' }]
-  },
-  {
-    title: 'Account',
-    items: [
-      { label: 'Profile', href: '/profile', match: 'exact' },
-      { label: 'Tokens', href: '/tokens', match: 'exact' }
-    ]
-  },
-  {
-    title: 'Admin',
-    items: [
-      { label: 'People', href: '/admin/people', match: 'startsWith' },
-      { label: 'Roles', href: '/admin/roles', match: 'startsWith' },
-      { label: 'Integrations', href: '/admin/integrations', match: 'startsWith' },
-      { label: 'Intake Webhooks', href: '/admin/intake-webhooks', match: 'startsWith' },
-      { label: 'Secrets', href: '/admin/secrets', match: 'startsWith' },
-      { label: 'Approvals', href: '/admin/approvals', match: 'startsWith' },
-      { label: 'Settings', href: '/admin/settings', match: 'startsWith' }
-    ]
-  }
-];
-
-type NavLinkProps = {
-  href: string;
-  match?: 'exact' | 'startsWith';
-  children: ReactNode;
+export type SidebarNavGroup = {
+  title: string;
+  items: SidebarNavItem[];
 };
 
-function NavLink({ href, match, children }: NavLinkProps) {
+export type SidebarProps = {
+  groups: SidebarNavGroup[];
+  displayName: string;
+  email: string;
+};
+
+const NAV_SECTION_ORDER = ['Operations', 'Security', 'Account', 'Admin'];
+
+function NavLink({ href, label }: SidebarNavItem) {
   const pathname = usePathname();
-  const mode = match ?? 'startsWith';
   const isExactMatch = pathname === href;
   const isNestedMatch = pathname?.startsWith(`${href}/`);
-  const isActive = mode === 'exact' ? isExactMatch : isExactMatch || isNestedMatch;
+  const isActive = isExactMatch || isNestedMatch;
 
   return (
     <Box
@@ -64,29 +34,74 @@ function NavLink({ href, match, children }: NavLinkProps) {
       data-active={isActive ? 'true' : undefined}
       className="block rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-slate-200 data-[active=true]:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-100 dark:data-[active=true]:bg-slate-700/70 dark:data-[active=true]:text-slate-50"
     >
-      <Link href={href}>{children}</Link>
+      <Link href={href}>{label}</Link>
     </Box>
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ groups, displayName, email }: SidebarProps) {
+  const sectionsMap = new Map<string, SidebarNavItem[]>();
+  for (const group of groups) {
+    sectionsMap.set(group.title, group.items);
+  }
+
+  const orderedSections: SidebarNavGroup[] = NAV_SECTION_ORDER.map((title) => ({
+    title,
+    items: sectionsMap.get(title) ?? []
+  }));
+
+  for (const group of groups) {
+    if (!NAV_SECTION_ORDER.includes(group.title)) {
+      orderedSections.push(group);
+    }
+  }
+
   return (
-    <Flex direction="column" gap="5">
-      {NAV_SECTIONS.map((section, index) => (
-        <Box key={section.title}>
-          <Text size="1" color="gray" weight="medium" className="uppercase tracking-wide">
-            {section.title}
-          </Text>
-          <Flex mt="2" direction="column" gap="1">
-            {section.items.map((item) => (
-              <NavLink key={item.href} href={item.href} match={item.match}>
-                {item.label}
-              </NavLink>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-slate-200 px-6 py-6 dark:border-slate-800">
+        <Flex align="center" gap="3">
+          <Box
+            aria-hidden
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-lg text-white dark:bg-slate-700"
+          >
+            ⚡
+          </Box>
+          <div>
+            <Text as="span" size="3" weight="medium">
+              Torvus Console
+            </Text>
+          </div>
+        </Flex>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <nav className="flex flex-col gap-7">
+          {orderedSections
+            .filter((section) => section.items.length > 0)
+            .map((section) => (
+              <div key={section.title}>
+                <Text
+                  size="1"
+                  color="gray"
+                  weight="medium"
+                  className="mb-2 block uppercase tracking-[0.12em]"
+                >
+                  {section.title}
+                </Text>
+                <Flex direction="column" gap="1">
+                  {section.items.map((item) => (
+                    <NavLink key={item.href} {...item} />
+                  ))}
+                </Flex>
+              </div>
             ))}
-          </Flex>
-          {index < NAV_SECTIONS.length - 1 ? <Separator my="4" size="4" /> : null}
-        </Box>
-      ))}
-    </Flex>
+        </nav>
+      </div>
+
+      <div className="border-t border-slate-200 px-6 py-6 text-sm dark:border-slate-800">
+        <div className="font-medium text-slate-700 dark:text-slate-100">{displayName}</div>
+        <div className="text-xs text-slate-500 dark:text-slate-400">{email}</div>
+      </div>
+    </div>
   );
 }

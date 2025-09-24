@@ -16,8 +16,6 @@ import { countAlerts } from '../../lib/data/alerts';
 import { countInvestigations } from '../../lib/data/investigations';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { logAudit } from '../../server/audit';
-import { AppShell } from '../../components/AppShell';
-import { Sidebar } from '../../components/Sidebar';
 import { PageHeader } from '../../components/PageHeader';
 
 const DEFAULT_STATS = {
@@ -148,14 +146,14 @@ export default async function OverviewPage() {
 
   if (!supabaseConfigured) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <PageHeader title="Overview" subtitle="Operations & security at a glance" />
+      <div className="flex flex-col gap-6">
+        <PageHeader title="Overview" description="Operations & security at a glance" />
         <Card size="3">
           <Text size="3" color="gray">
             Supabase configuration is required to display overview metrics.
           </Text>
         </Card>
-      </AppShell>
+      </div>
     );
   }
 
@@ -191,10 +189,10 @@ export default async function OverviewPage() {
   });
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Overview"
-        subtitle="Operations & security at a glance"
+        description="Operations & security at a glance"
         actions={(
           <Text size="2" color="gray">
             Signed in as {staffUser.displayName}
@@ -376,6 +374,6 @@ export default async function OverviewPage() {
           </Flex>
         </Card>
       </Grid>
-    </AppShell>
+    </div>
   );
 }

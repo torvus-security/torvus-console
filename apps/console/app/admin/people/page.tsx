@@ -3,8 +3,6 @@ import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
-import { AppShell } from '../../../components/AppShell';
-import { Sidebar } from '../../../components/Sidebar';
 import { PageHeader } from '../../../components/PageHeader';
 import { InviteStaffButton } from '../../../components/actions/InviteStaffButton';
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
@@ -147,11 +145,9 @@ export default async function AdminPeoplePage() {
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <Box py="9">
-          <AccessDeniedNotice />
-        </Box>
-      </AppShell>
+      <Box py="9">
+        <AccessDeniedNotice />
+      </Box>
     );
   }
 
@@ -193,15 +189,15 @@ export default async function AdminPeoplePage() {
   })();
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="People"
-        subtitle="Security administrators enrolled in Torvus Console."
+        description="Security administrators enrolled in Torvus Console."
         actions={headerActions}
       />
       <Suspense fallback={<PeopleSkeleton />}>
         <PeopleDirectorySection dataPromise={peopleDataPromise} />
       </Suspense>
-    </AppShell>
+    </div>
   );
 }
