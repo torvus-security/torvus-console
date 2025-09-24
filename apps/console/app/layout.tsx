@@ -38,20 +38,18 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   const supabaseConfigured = isSupabaseConfigured();
 
-  const themeProps = {
-    appearance: 'dark' as const,
-    accentColor: 'iris' as const,
-    grayColor: 'slate' as const,
-    panelBackground: 'translucent' as const,
-    radius: 'large' as const,
-    scaling: '100%' as const
-  };
-
   if (!supabaseConfigured) {
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme {...themeProps}>
+          <Theme
+            appearance="dark"
+            radius="large"
+            scaling="100%"
+            accentColor="iris"
+            grayColor="slate"
+            panelBackground="translucent"
+          >
             <div className="unauthorised" role="alert">
               <h1>Torvus Console</h1>
               <p>Supabase configuration is required before the console can be used.</p>
@@ -72,7 +70,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme {...themeProps}>
+          <Theme
+            appearance="dark"
+            radius="large"
+            scaling="100%"
+            accentColor="iris"
+            grayColor="slate"
+            panelBackground="translucent"
+          >
             <AccessDeniedNotice />
           </Theme>
         </body>
@@ -96,7 +101,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme {...themeProps}>
+          <Theme
+            appearance="dark"
+            radius="large"
+            scaling="100%"
+            accentColor="iris"
+            grayColor="slate"
+            panelBackground="translucent"
+          >
             <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
           </Theme>
         </body>
@@ -131,7 +143,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-theme="torvus-staff">
       <body data-correlation={correlationId} className="layout-shell">
-        <Theme {...themeProps}>
+        <Theme
+          appearance="dark"
+          radius="large"
+          scaling="100%"
+          accentColor="iris"
+          grayColor="slate"
+          panelBackground="translucent"
+        >
           <aside className="sidebar" aria-label="Primary">
             <div className="sidebar__brand">
               <span className="brand-mark" aria-hidden>
