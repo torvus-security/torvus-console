@@ -20,7 +20,7 @@ export function TokensPageContent({ displayName, email }: TokensPageContentProps
     <>
       <PageHeader
         title="Personal access tokens"
-        subtitle="Generate API secrets tied to your staff identity."
+        description="Generate API secrets tied to your staff identity."
         actions={(
           <Flex align="center" gap="3" wrap="wrap">
             <Text size="2" color="gray">

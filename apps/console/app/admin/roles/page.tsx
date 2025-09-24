@@ -3,8 +3,6 @@ import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
-import { AppShell } from '../../../components/AppShell';
-import { Sidebar } from '../../../components/Sidebar';
 import { PageHeader } from '../../../components/PageHeader';
 import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
@@ -161,11 +159,9 @@ export default async function AdminRolesPage() {
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <Box py="9">
-          <AccessDeniedNotice />
-        </Box>
-      </AppShell>
+      <Box py="9">
+        <AccessDeniedNotice />
+      </Box>
     );
   }
 
@@ -207,15 +203,15 @@ export default async function AdminRolesPage() {
   })();
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Roles"
-        subtitle="Manage privileged assignments for staff."
+        description="Manage privileged assignments for staff."
         actions={headerActions}
       />
       <Suspense fallback={<RolesSkeleton />}>
         <RolesDirectorySection dataPromise={rolesDataPromise} />
       </Suspense>
-    </AppShell>
+    </div>
   );
 }

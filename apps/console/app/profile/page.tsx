@@ -7,8 +7,6 @@ import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
-import { AppShell } from '../../components/AppShell';
-import { Sidebar } from '../../components/Sidebar';
 import { PageHeader } from '../../components/PageHeader';
 
 async function saveProfileAction(
@@ -73,19 +71,17 @@ export default async function ProfilePage() {
 
   if (!staffUser) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <Box py="9">
-          <AccessDeniedNotice variant="card" />
-        </Box>
-      </AppShell>
+      <Box py="9">
+        <AccessDeniedNotice variant="card" />
+      </Box>
     );
   }
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Profile"
-        subtitle="Manage how your identity appears across audit trails and console workflows."
+        description="Manage how your identity appears across audit trails and console workflows."
         actions={(
           <Flex align="center" gap="3" wrap="wrap">
             <Text size="2" color="gray">
@@ -110,6 +106,6 @@ export default async function ProfilePage() {
         </Box>
         <PersonalAccessTokensPanel />
       </Flex>
-    </AppShell>
+    </div>
   );
 }

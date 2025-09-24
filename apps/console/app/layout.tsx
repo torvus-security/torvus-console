@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
-import clsx from 'clsx';
 import '@radix-ui/themes/styles.css';
 import { Theme } from '@radix-ui/themes';
 import '../design/radix-colors.css';
@@ -17,6 +15,7 @@ import { formatBreadcrumb } from '../lib/breadcrumbs';
 import { IdentityPill } from '../components/IdentityPill';
 import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
+import { Sidebar } from '../components/Sidebar';
 
 export const metadata: Metadata = {
   title: 'Torvus Console',
@@ -140,9 +139,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     }
   }
 
+  const sidebarGroups = navGroups.map((group) => ({
+    title: group.group,
+    items: group.items
+  }));
+
   return (
     <html lang="en" data-theme="torvus-staff">
-      <body data-correlation={correlationId} className="layout-shell">
+      <body data-correlation={correlationId}>
         <Theme
           appearance="dark"
           radius="large"
@@ -151,50 +155,33 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           grayColor="slate"
           panelBackground="translucent"
         >
-          <aside className="sidebar" aria-label="Primary">
-            <div className="sidebar__brand">
-              <span className="brand-mark" aria-hidden>
-                ⚡
-              </span>
-              <span className="brand-text">Torvus Console</span>
-            </div>
-            <nav>
-              {navGroups.map((group) => (
-                <div key={group.group} className="nav-group">
-                  <div className="nav-group__label">{group.group}</div>
-                  <ul>
-                    {group.items.map((item) => (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          className={clsx('nav-link', {
-                            active:
-                              pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-                          })}
-                        >
-                          {item.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </nav>
-            <footer>
-              <span className="staff-name">{staffUser.displayName}</span>
-              <span className="staff-email">{staffUser.email}</span>
-            </footer>
-          </aside>
-          <div className="content">
-            {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
-            <header className="topbar">
-              <div className="breadcrumbs">{formatBreadcrumb(pathname)}</div>
-              <div className="topbar__meta" data-nonce={nonce}>
-                <IdentityPill displayName={staffUser.displayName} email={staffUser.email} roles={staffUser.roles} />
+          <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)]">
+            <aside
+              aria-label="Primary"
+              className="border-r border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/20"
+            >
+              <div className="sticky top-0 h-screen overflow-y-auto">
+                <Sidebar groups={sidebarGroups} displayName={staffUser.displayName} email={staffUser.email} />
               </div>
-            </header>
-            <main className="main" data-testid="main-content">
-              <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+            </aside>
+            <main className="min-h-screen overflow-y-auto" data-testid="main-content">
+              <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="text-sm font-medium text-slate-500 dark:text-slate-300">
+                    {formatBreadcrumb(pathname)}
+                  </div>
+                  <div data-nonce={nonce} className="flex w-full justify-end sm:w-auto">
+                    <IdentityPill
+                      displayName={staffUser.displayName}
+                      email={staffUser.email}
+                      roles={staffUser.roles}
+                      className="sm:w-auto sm:max-w-none"
+                    />
+                  </div>
+                </div>
+                {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
+                <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+              </div>
             </main>
           </div>
         </Theme>

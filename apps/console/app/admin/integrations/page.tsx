@@ -2,8 +2,6 @@ import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
-import { AppShell } from '../../../components/AppShell';
-import { Sidebar } from '../../../components/Sidebar';
 import { PageHeader } from '../../../components/PageHeader';
 import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { IntegrationsManager, type IntegrationsManagerProps } from '../../../components/admin/IntegrationsManager';
@@ -61,11 +59,9 @@ export default async function AdminIntegrationsPage() {
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <Box py="9">
-          <AccessDeniedNotice />
-        </Box>
-      </AppShell>
+      <Box py="9">
+        <AccessDeniedNotice />
+      </Box>
     );
   }
 
@@ -95,10 +91,10 @@ export default async function AdminIntegrationsPage() {
   } catch (error) {
     console.error('failed to load integrations', error);
     return (
-      <AppShell sidebar={<Sidebar />}>
+      <div className="flex flex-col gap-6">
         <PageHeader
           title="Integrations"
-          subtitle="Manage outbound notifications and event subscriptions."
+          description="Manage outbound notifications and event subscriptions."
           actions={(
             <Flex align="center" gap="3" wrap="wrap">
               <Text size="2" color="gray">
@@ -116,17 +112,15 @@ export default async function AdminIntegrationsPage() {
             </Button>
           </Flex>
         </Callout.Root>
-      </AppShell>
+      </div>
     );
   }
 
   if (integrationsResult.status === 401 || integrationsResult.status === 403 || !integrationsResult.data) {
     return (
-      <AppShell sidebar={<Sidebar />}>
-        <Box py="9">
-          <AccessDeniedNotice />
-        </Box>
-      </AppShell>
+      <Box py="9">
+        <AccessDeniedNotice />
+      </Box>
     );
   }
 
@@ -141,14 +135,14 @@ export default async function AdminIntegrationsPage() {
   );
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="Integrations"
-        subtitle="Manage outbound notifications and event subscriptions."
+        description="Manage outbound notifications and event subscriptions."
         actions={headerActions}
       />
 
       <IntegrationsManager initialWebhooks={data.webhooks} initialEvents={data.events} />
-    </AppShell>
+    </div>
   );
 }

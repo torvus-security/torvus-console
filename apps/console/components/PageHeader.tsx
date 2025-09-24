@@ -5,12 +5,12 @@ import { Box, Flex, Heading, Separator, Text } from '@radix-ui/themes';
 
 export type PageHeaderProps = {
   title: string;
-  subtitle?: string;
+  description?: string;
   actions?: ReactNode;
   headingId?: string;
 };
 
-export function PageHeader({ title, subtitle, actions, headingId }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, headingId }: PageHeaderProps) {
   return (
     <Box mb="5">
       <Flex
@@ -24,9 +24,9 @@ export function PageHeader({ title, subtitle, actions, headingId }: PageHeaderPr
           <Heading as="h1" size="6" id={headingId}>
             {title}
           </Heading>
-          {subtitle ? (
+          {description ? (
             <Text size="2" color="gray" mt="2">
-              {subtitle}
+              {description}
             </Text>
           ) : null}
         </Box>

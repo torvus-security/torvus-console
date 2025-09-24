@@ -3,8 +3,6 @@ import type { Metadata } from 'next';
 import { Flex, Text } from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
-import { AppShell } from '../../components/AppShell';
-import { Sidebar } from '../../components/Sidebar';
 import { PageHeader } from '../../components/PageHeader';
 import { RefreshButton } from '../../components/actions/RefreshButton';
 import { AuditClient } from './AuditClient';
@@ -99,11 +97,11 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
   });
 
   return (
-    <AppShell sidebar={<Sidebar />}>
+    <div className="flex flex-col gap-6">
       <PageHeader
         headingId="audit-heading"
         title="Audit trail"
-        subtitle="Time-ordered ledger of privileged console activity."
+        description="Time-ordered ledger of privileged console activity."
         actions={(
           <Flex align="center" gap="3" wrap="wrap">
             <Text size="2" color="gray">
@@ -139,6 +137,6 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
           )}
         />
       </section>
-    </AppShell>
+    </div>
   );
 }
