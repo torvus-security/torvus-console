@@ -2,6 +2,7 @@ import { headers } from 'next/headers';
 import { requireStaff } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
 import { getAnalyticsClient } from '../../lib/analytics';
+import { PageHeader } from '../../components/PageHeader';
 import { exportAuditCsv, exportAuditJson } from './actions';
 import { FilterSchema, FilterValues, AuditEventRow } from './shared';
 
@@ -99,12 +100,15 @@ export default async function AuditEventsPage({
   }
 
   return (
-    <div className="page">
+    <div className="page flex flex-col gap-6">
+      <PageHeader
+        title="Audit events"
+        description="Detailed activity log for compliance-ready evidence."
+        headingId="audit-heading"
+        actions={<span className="tag subtle">Evidence ready</span>}
+      />
+
       <section className="panel" aria-labelledby="audit-heading">
-        <div className="panel__header">
-          <h1 id="audit-heading">Audit events</h1>
-          <span className="tag subtle">Evidence ready</span>
-        </div>
         <form method="get" className="filters" data-testid="audit-filter-form">
           <label>
             Actor

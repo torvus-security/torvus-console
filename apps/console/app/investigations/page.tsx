@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import clsx from 'clsx';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { PageHeader } from '../../components/PageHeader';
 import { getStaffUser } from '../../lib/auth';
 import { INVESTIGATION_SEVERITIES, INVESTIGATION_STATUSES } from '../../lib/investigations/constants';
 import { listInvestigations, type InvestigationListItem } from '../../lib/data/investigations';
@@ -373,13 +374,11 @@ export default async function InvestigationsPage({ searchParams }: { searchParam
 
   return (
     <div className="flex flex-col gap-6 py-6">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-        <div>
-          <h1 className="text-3xl font-semibold text-slate-100">Investigations</h1>
-          <p className="text-sm text-slate-400">Lightweight case tracking for Torvus responders.</p>
-        </div>
-        <NewInvestigationDialog canManage={canManage} />
-      </div>
+      <PageHeader
+        title="Investigations"
+        description="Lightweight case tracking for Torvus responders."
+        actions={<NewInvestigationDialog canManage={canManage} />}
+      />
 
       <FiltersForm filters={filters} />
 

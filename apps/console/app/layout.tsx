@@ -11,7 +11,6 @@ import '../styles/globals.css';
 import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { formatBreadcrumb } from '../lib/breadcrumbs';
 import { IdentityPill } from '../components/IdentityPill';
 import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
@@ -166,18 +165,13 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             </aside>
             <main className="min-h-screen overflow-y-auto" data-testid="main-content">
               <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="text-sm font-medium text-slate-500 dark:text-slate-300">
-                    {formatBreadcrumb(pathname)}
-                  </div>
-                  <div data-nonce={nonce} className="flex w-full justify-end sm:w-auto">
-                    <IdentityPill
-                      displayName={staffUser.displayName}
-                      email={staffUser.email}
-                      roles={staffUser.roles}
-                      className="sm:w-auto sm:max-w-none"
-                    />
-                  </div>
+                <div data-nonce={nonce} className="flex justify-end">
+                  <IdentityPill
+                    displayName={staffUser.displayName}
+                    email={staffUser.email}
+                    roles={staffUser.roles}
+                    className="sm:w-auto sm:max-w-none"
+                  />
                 </div>
                 {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
                 <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
