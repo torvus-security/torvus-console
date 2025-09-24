@@ -1,11 +1,15 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import clsx from 'clsx';
+import { Text } from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
 import { countAlerts } from '../../lib/data/alerts';
 import { countInvestigations } from '../../lib/data/investigations';
 import { logAudit } from '../../server/audit';
+import { AppShell } from '../../components/AppShell';
+import { Sidebar } from '../../components/Sidebar';
+import { PageHeader } from '../../components/PageHeader';
 
 const DEFAULT_STATS = {
   activeAlerts: 0,
@@ -128,85 +132,96 @@ export default async function OverviewPage() {
   });
 
   return (
-    <div className="page">
-      <div className="cards">
-        <article className="card">
-          <header>
-            <h2>Active alerts</h2>
-            <span className="metric">{mergedStats.activeAlerts}</span>
-          </header>
-          <p className="muted">Alerts open across Torvus platform services.</p>
-        </article>
-        <article className="card">
-          <header>
-            <h2>Open investigations</h2>
-            <span className="metric">{mergedStats.openInvestigations}</span>
-          </header>
-          <p className="muted">Endpoint triage items assigned to Console operators.</p>
-        </article>
-        <article className="card">
-          <header>
-            <h2>Release train</h2>
-            <span className={clsx('metric', mergedStats.releaseTrainStatus)}>{mergedStats.releaseTrainStatus}</span>
-          </header>
-          <p className="muted">Release execution remains feature-flagged pending dual-control validation.</p>
-          <Link
-            href="/releases"
-            className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
-          >
-            View release requests →
-          </Link>
-        </article>
-        <article className="card">
-          <header>
-            <h2>Last incident</h2>
-            <span className="metric">{formatDate(mergedStats.lastIncidentAt)}</span>
-          </header>
-          <p className="muted">UTC timestamp, pulled from audit trail for evidence parity.</p>
-        </article>
-        {isSecurityAdmin && (
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        title="Overview"
+        subtitle="Operations & security at a glance"
+        actions={(
+          <Text size="2" color="gray">
+            Signed in as {staffUser.displayName}
+          </Text>
+        )}
+      />
+      <div className="page">
+        <div className="cards">
           <article className="card">
             <header>
-              <h2>Admin</h2>
+              <h2>Active alerts</h2>
+              <span className="metric">{mergedStats.activeAlerts}</span>
             </header>
-            <p className="muted">Manage people &amp; roles.</p>
+            <p className="muted">Alerts open across Torvus platform services.</p>
+          </article>
+          <article className="card">
+            <header>
+              <h2>Open investigations</h2>
+              <span className="metric">{mergedStats.openInvestigations}</span>
+            </header>
+            <p className="muted">Endpoint triage items assigned to Console operators.</p>
+          </article>
+          <article className="card">
+            <header>
+              <h2>Release train</h2>
+              <span className={clsx('metric', mergedStats.releaseTrainStatus)}>{mergedStats.releaseTrainStatus}</span>
+            </header>
+            <p className="muted">Release execution remains feature-flagged pending dual-control validation.</p>
             <Link
-              href="/admin/people"
+              href="/releases"
               className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
             >
-              Open admin tools →
+              View release requests →
             </Link>
           </article>
-        )}
-      </div>
+          <article className="card">
+            <header>
+              <h2>Last incident</h2>
+              <span className="metric">{formatDate(mergedStats.lastIncidentAt)}</span>
+            </header>
+            <p className="muted">UTC timestamp, pulled from audit trail for evidence parity.</p>
+          </article>
+          {isSecurityAdmin && (
+            <article className="card">
+              <header>
+                <h2>Admin</h2>
+              </header>
+              <p className="muted">Manage people &amp; roles.</p>
+              <Link
+                href="/admin/people"
+                className="mt-4 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200"
+              >
+                Open admin tools →
+              </Link>
+            </article>
+          )}
+        </div>
 
-      <div className="grid-two">
-        <StatuspageEmbed correlationId={correlationId} />
-        <section className="panel" aria-labelledby="system-heading">
-          <div className="panel__header">
-            <h2 id="system-heading">System signals</h2>
-            <span className="tag subtle">Read only</span>
-          </div>
-          <dl className="kv">
-            <div>
-              <dt>Environment</dt>
-              <dd>{process.env.NODE_ENV}</dd>
+        <div className="grid-two">
+          <StatuspageEmbed correlationId={correlationId} />
+          <section className="panel" aria-labelledby="system-heading">
+            <div className="panel__header">
+              <h2 id="system-heading">System signals</h2>
+              <span className="tag subtle">Read only</span>
             </div>
-            <div>
-              <dt>Feature flag</dt>
-              <dd>{process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}</dd>
-            </div>
-            <div>
-              <dt>Supabase project</dt>
-              <dd>{process.env.SUPABASE_URL ?? 'unset'}</dd>
-            </div>
-            <div>
-              <dt>Correlation ID</dt>
-              <dd>{correlationId}</dd>
-            </div>
-          </dl>
-        </section>
+            <dl className="kv">
+              <div>
+                <dt>Environment</dt>
+                <dd>{process.env.NODE_ENV}</dd>
+              </div>
+              <div>
+                <dt>Feature flag</dt>
+                <dd>{process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}</dd>
+              </div>
+              <div>
+                <dt>Supabase project</dt>
+                <dd>{process.env.SUPABASE_URL ?? 'unset'}</dd>
+              </div>
+              <div>
+                <dt>Correlation ID</dt>
+                <dd>{correlationId}</dd>
+              </div>
+            </dl>
+          </section>
+        </div>
       </div>
-    </div>
+    </AppShell>
   );
 }
