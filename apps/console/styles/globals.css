@@ -20,7 +20,7 @@ body {
 
 body {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
   width: 100%;
 }
 
@@ -64,7 +64,7 @@ ol {
   display: grid;
   grid-template-columns: 280px 1fr;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .sidebar {
@@ -133,7 +133,7 @@ ol {
 .content {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   background: radial-gradient(
       circle at top right,
       color-mix(in srgb, var(--color-lagoon) 14%, transparent),
@@ -830,6 +830,6 @@ select:focus {
   }
 
   .content {
-    min-height: calc(100vh - 96px);
+    min-height: calc(100dvh - 96px);
   }
 }

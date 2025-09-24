@@ -37,11 +37,20 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   const staffUser = await getStaffUser();
 
+  const themeProps = {
+    appearance: 'dark' as const,
+    accentColor: 'iris' as const,
+    grayColor: 'slate' as const,
+    panelBackground: 'translucent' as const,
+    radius: 'large' as const,
+    scaling: '100%' as const
+  };
+
   if (!staffUser) {
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+          <Theme {...themeProps}>
             <AccessDeniedNotice />
           </Theme>
         </body>
@@ -65,7 +74,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+          <Theme {...themeProps}>
             <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
           </Theme>
         </body>
@@ -100,7 +109,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-theme="torvus-staff">
       <body data-correlation={correlationId} className="layout-shell">
-        <Theme appearance="light" accentColor="crimson" grayColor="mauve" radius="large" scaling="95%">
+        <Theme {...themeProps}>
           <aside className="sidebar" aria-label="Primary">
             <div className="sidebar__brand">
               <span className="brand-mark" aria-hidden>
