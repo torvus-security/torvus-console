@@ -5,9 +5,10 @@ export type PageHeaderProps = {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  headingId?: string;
 };
 
-export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, actions, headingId }: PageHeaderProps) {
   return (
     <Box mb="5">
       <Flex
@@ -18,7 +19,7 @@ export function PageHeader({ title, subtitle, actions }: PageHeaderProps) {
         wrap="wrap"
       >
         <Box>
-          <Heading as="h1" size="6">
+          <Heading as="h1" size="6" id={headingId}>
             {title}
           </Heading>
           {subtitle ? (

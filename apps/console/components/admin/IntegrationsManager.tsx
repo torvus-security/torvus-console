@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useState, type FormEvent } from 'react';
 import clsx from 'clsx';
+import { Button, Callout, Flex } from '@radix-ui/themes';
 
 type WebhookRecord = {
   id: string;
@@ -240,14 +241,21 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
     }
   }
 
+  const focusAddForm = useCallback(() => {
+    const target = document.getElementById('add-integration');
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (target instanceof HTMLElement) {
+        target.focus({ preventScroll: true });
+      }
+    }
+  }, []);
+
   return (
     <section className="flex flex-col gap-8 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold text-slate-100">Outbound notifications</h1>
-        <p className="text-sm text-slate-400">
-          Configure Slack or Teams webhooks and control which events send notifications.
-        </p>
-      </div>
+      <p className="text-sm text-slate-400">
+        Configure Slack or Teams webhooks and control which events send notifications.
+      </p>
 
       {status && (
         <div
@@ -262,9 +270,24 @@ export function IntegrationsManager({ initialWebhooks, initialEvents }: Integrat
         </div>
       )}
 
+      {sortedWebhooks.length === 0 ? (
+        <Callout.Root color="gray" role="status">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Callout.Text>No integrations configured yet. Add a webhook to notify your team.</Callout.Text>
+            <Button color="iris" onClick={focusAddForm}>
+              Add integration
+            </Button>
+          </Flex>
+        </Callout.Root>
+      ) : null}
+
       <div className="grid gap-8 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
-          <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-6">
+          <div
+            id="add-integration"
+            tabIndex={-1}
+            className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-6"
+          >
             <h2 className="text-xl font-semibold text-slate-100">Add webhook</h2>
             <p className="mt-1 text-sm text-slate-400">
               Reference a stored secret key containing the webhook URL. Create or rotate secrets from the Secrets

@@ -5,50 +5,58 @@ import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Box, Flex, Separator, Text } from '@radix-ui/themes';
 
-const NAV_SECTIONS: Array<{ title: string; items: Array<{ label: string; href: string }> }> = [
+type NavItem = {
+  label: string;
+  href: string;
+  match?: 'exact' | 'startsWith';
+};
+
+const NAV_SECTIONS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: 'Operations',
     items: [
-      { label: 'Overview', href: '/overview' },
-      { label: 'Alerts', href: '/alerts' },
-      { label: 'Releases', href: '/releases' }
+      { label: 'Overview', href: '/overview', match: 'startsWith' },
+      { label: 'Alerts', href: '/alerts', match: 'startsWith' },
+      { label: 'Releases', href: '/releases', match: 'startsWith' }
     ]
   },
   {
     title: 'Security',
-    items: [{ label: 'Audit trail', href: '/audit' }]
+    items: [{ label: 'Audit trail', href: '/audit', match: 'startsWith' }]
   },
   {
     title: 'Account',
     items: [
-      { label: 'Profile', href: '/profile' },
-      { label: 'Tokens', href: '/tokens' }
+      { label: 'Profile', href: '/profile', match: 'exact' },
+      { label: 'Tokens', href: '/tokens', match: 'exact' }
     ]
   },
   {
     title: 'Admin',
     items: [
-      { label: 'People', href: '/admin/people' },
-      { label: 'Roles', href: '/admin/roles' },
-      { label: 'Integrations', href: '/admin/integrations' },
-      { label: 'Intake Webhooks', href: '/admin/intake-webhooks' },
-      { label: 'Secrets', href: '/admin/secrets' },
-      { label: 'Approvals', href: '/admin/approvals' },
-      { label: 'Settings', href: '/admin/settings' }
+      { label: 'People', href: '/admin/people', match: 'startsWith' },
+      { label: 'Roles', href: '/admin/roles', match: 'startsWith' },
+      { label: 'Integrations', href: '/admin/integrations', match: 'startsWith' },
+      { label: 'Intake Webhooks', href: '/admin/intake-webhooks', match: 'startsWith' },
+      { label: 'Secrets', href: '/admin/secrets', match: 'startsWith' },
+      { label: 'Approvals', href: '/admin/approvals', match: 'startsWith' },
+      { label: 'Settings', href: '/admin/settings', match: 'startsWith' }
     ]
   }
 ];
 
 type NavLinkProps = {
   href: string;
+  match?: 'exact' | 'startsWith';
   children: ReactNode;
 };
 
-function NavLink({ href, children }: NavLinkProps) {
+function NavLink({ href, match, children }: NavLinkProps) {
   const pathname = usePathname();
+  const mode = match ?? 'startsWith';
   const isExactMatch = pathname === href;
   const isNestedMatch = pathname?.startsWith(`${href}/`);
-  const isActive = isExactMatch || isNestedMatch;
+  const isActive = mode === 'exact' ? isExactMatch : isExactMatch || isNestedMatch;
 
   return (
     <Box
@@ -71,7 +79,7 @@ export function Sidebar() {
           </Text>
           <Flex mt="2" direction="column" gap="1">
             {section.items.map((item) => (
-              <NavLink key={item.href} href={item.href}>
+              <NavLink key={item.href} href={item.href} match={item.match}>
                 {item.label}
               </NavLink>
             ))}

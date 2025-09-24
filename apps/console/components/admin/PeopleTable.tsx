@@ -53,17 +53,12 @@ export function PeopleTable({ people }: PeopleTableProps) {
 
   return (
     <section className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-slate-100">Admin directory</h1>
-          <p className="text-sm text-slate-400">
-            Staff enrolled in Torvus Console and their assigned roles.
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-400">Filter staff by email or display name.</p>
         <label
           className={clsx(
             'flex w-full items-center gap-2 rounded-full border border-slate-700 bg-slate-950/60 px-4 py-2 text-sm text-slate-200 focus-within:border-slate-500',
-            'lg:w-auto'
+            'sm:w-auto'
           )}
         >
           <span className="sr-only">Filter staff</span>

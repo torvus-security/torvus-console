@@ -1,5 +1,11 @@
+import Link from 'next/link';
 import { cookies, headers } from 'next/headers';
+import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
+import { AppShell } from '../../../components/AppShell';
+import { Sidebar } from '../../../components/Sidebar';
+import { PageHeader } from '../../../components/PageHeader';
+import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { IntegrationsManager, type IntegrationsManagerProps } from '../../../components/admin/IntegrationsManager';
 import { getStaffUser } from '../../../lib/auth';
 
@@ -54,7 +60,13 @@ export default async function AdminIntegrationsPage() {
   const staffUser = await getStaffUser();
 
   if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
 
   const headerBag = headers();
@@ -76,19 +88,67 @@ export default async function AdminIntegrationsPage() {
     ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
-  const { status, data } = await fetchIntegrations(baseUrl, headerEmail);
+  let integrationsResult: FetchResult;
 
-  if (status === 401 || status === 403) {
-    return <AccessDeniedNotice />;
+  try {
+    integrationsResult = await fetchIntegrations(baseUrl, headerEmail);
+  } catch (error) {
+    console.error('failed to load integrations', error);
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <PageHeader
+          title="Integrations"
+          subtitle="Manage outbound notifications and event subscriptions."
+          actions={(
+            <Flex align="center" gap="3" wrap="wrap">
+              <Text size="2" color="gray">
+                Signed in as {staffUser.displayName} ({staffUser.email})
+              </Text>
+              <ScrollToSectionButton targetId="add-integration" label="Add integration" />
+            </Flex>
+          )}
+        />
+        <Callout.Root color="crimson" role="alert">
+          <Flex align="center" justify="between" gap="3" wrap="wrap">
+            <Callout.Text>Unable to load integrations. Try again shortly.</Callout.Text>
+            <Button color="crimson" variant="soft" asChild>
+              <Link href="/admin/integrations">Retry</Link>
+            </Button>
+          </Flex>
+        </Callout.Root>
+      </AppShell>
+    );
   }
 
-  if (!data) {
-    throw new Error('Integrations payload missing');
+  if (integrationsResult.status === 401 || integrationsResult.status === 403 || !integrationsResult.data) {
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <Box py="9">
+          <AccessDeniedNotice />
+        </Box>
+      </AppShell>
+    );
   }
+
+  const data = integrationsResult.data;
+  const headerActions = (
+    <Flex align="center" gap="3" wrap="wrap">
+      <Text size="2" color="gray">
+        Signed in as {staffUser.displayName} ({staffUser.email})
+      </Text>
+      <ScrollToSectionButton targetId="add-integration" label="Add integration" />
+    </Flex>
+  );
 
   return (
-    <div className="page">
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        title="Integrations"
+        subtitle="Manage outbound notifications and event subscriptions."
+        actions={headerActions}
+      />
+
       <IntegrationsManager initialWebhooks={data.webhooks} initialEvents={data.events} />
-    </div>
+    </AppShell>
   );
 }

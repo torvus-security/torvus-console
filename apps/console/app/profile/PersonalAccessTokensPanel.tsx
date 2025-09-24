@@ -1,6 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent
+} from 'react';
+import { Button, Callout, Flex } from '@radix-ui/themes';
 
 export type PersonalAccessToken = {
   id: string;
@@ -122,7 +132,19 @@ function ScopesList({ scopes }: { scopes: string[] }) {
   );
 }
 
-export function PersonalAccessTokensPanel() {
+export type PersonalAccessTokensPanelHandle = {
+  openCreate: () => void;
+  reload: () => void;
+};
+
+export type PersonalAccessTokensPanelProps = {
+  showHeader?: boolean;
+};
+
+export const PersonalAccessTokensPanel = forwardRef<
+  PersonalAccessTokensPanelHandle,
+  PersonalAccessTokensPanelProps
+>(function PersonalAccessTokensPanel({ showHeader = true }, ref) {
   const [tokens, setTokens] = useState<PersonalAccessToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -134,41 +156,41 @@ export function PersonalAccessTokensPanel() {
   const [creating, setCreating] = useState(false);
   const [creationError, setCreationError] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadTokens() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch('/api/self/pats', { cache: 'no-store' });
-        if (!response.ok) {
-          const message = await response.text();
-          throw new Error(message || 'failed to load tokens');
-        }
-        const data = (await response.json()) as PersonalAccessToken[];
-        if (!cancelled) {
-          setTokens(data);
-        }
-      } catch (loadError) {
-        console.error('failed to load personal access tokens', loadError);
-        if (!cancelled) {
-          setError('Unable to load personal access tokens. Refresh to try again.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+  const loadTokens = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/self/pats', { cache: 'no-store' });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || 'failed to load tokens');
+      }
+      const data = (await response.json()) as PersonalAccessToken[];
+      if (mountedRef.current) {
+        setTokens(data);
+      }
+    } catch (loadError) {
+      console.error('failed to load personal access tokens', loadError);
+      if (mountedRef.current) {
+        setError('Unable to load personal access tokens. Try again in a moment.');
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
       }
     }
+  }, []);
 
-    loadTokens();
+  useEffect(() => {
+    mountedRef.current = true;
+    void loadTokens();
 
     return () => {
-      cancelled = true;
+      mountedRef.current = false;
     };
-  }, []);
+  }, [loadTokens]);
 
   const resetForm = useCallback(() => {
     setName('');
@@ -177,6 +199,12 @@ export function PersonalAccessTokensPanel() {
     setExpiry('');
     setCreationError(null);
   }, []);
+
+  const openCreate = useCallback(() => {
+    resetForm();
+    setModalOpen(true);
+    setCreationError(null);
+  }, [resetForm]);
 
   const handleCreate = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -267,7 +295,7 @@ export function PersonalAccessTokensPanel() {
       setTokens((previous) => previous.map((token) => (token.id === row.id ? row : token)));
     } catch (revokeError) {
       console.error('failed to revoke personal access token', revokeError);
-      setError('Unable to revoke token. Refresh to try again.');
+      setError('Unable to revoke token. Try again in a moment.');
     }
   }, []);
 
@@ -282,42 +310,62 @@ export function PersonalAccessTokensPanel() {
     setSecret(null);
   }, []);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      openCreate,
+      reload: () => {
+        void loadTokens();
+      }
+    }),
+    [loadTokens, openCreate]
+  );
+
   const sortedTokens = useMemo(() => {
     return [...tokens].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [tokens]);
 
   return (
-    <section className="rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-lg">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col">
-          <h2 className="text-xl font-semibold text-slate-100">Personal access tokens</h2>
-          <p className="text-sm text-slate-400">
-            Generate secrets for CLI or API access. Tokens inherit your current roles and can be revoked at any time.
-          </p>
+    <section className="flex flex-col gap-4 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-lg">
+      {showHeader ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col">
+            <h2 className="text-xl font-semibold text-slate-100">Personal access tokens</h2>
+            <p className="text-sm text-slate-400">
+              Generate secrets for CLI or API access. Tokens inherit your current roles and can be revoked at any time.
+            </p>
+          </div>
+          <Button color="iris" onClick={openCreate} className="mt-2 sm:mt-0">
+            Create token
+          </Button>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setModalOpen(true);
-            setCreationError(null);
-          }}
-          className="mt-2 inline-flex items-center justify-center rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-sky-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-300 sm:mt-0"
-        >
-          Create token
-        </button>
-      </div>
+      ) : null}
 
-      <div className="mt-4 flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
         {secret ? <TokenSecretBanner secret={secret} onDismiss={dismissSecret} /> : null}
         {error ? (
-          <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-200">{error}</div>
+          <Callout.Root color="crimson" role="alert">
+            <Flex align="center" justify="between" gap="3" wrap="wrap">
+              <Callout.Text>{error}</Callout.Text>
+              <Button color="crimson" variant="soft" onClick={() => void loadTokens()}>
+                Retry
+              </Button>
+            </Flex>
+          </Callout.Root>
         ) : null}
         {loading ? (
-          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/40 p-6 text-center text-sm text-slate-400">Loading tokens…</div>
-        ) : sortedTokens.length === 0 ? (
           <div className="rounded-2xl border border-slate-700/70 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
-            No tokens yet. Create one to automate workflows securely.
+            Loading tokens…
           </div>
+        ) : sortedTokens.length === 0 ? (
+          <Callout.Root color="gray" role="status">
+            <Flex align="center" justify="between" gap="3" wrap="wrap">
+              <Callout.Text>No tokens yet. Create one to automate workflows securely.</Callout.Text>
+              <Button color="iris" onClick={openCreate}>
+                Create token
+              </Button>
+            </Flex>
+          </Callout.Root>
         ) : (
           <div className="flex flex-col gap-3">
             {sortedTokens.map((token) => (
@@ -449,4 +497,4 @@ export function PersonalAccessTokensPanel() {
       ) : null}
     </section>
   );
-}
+});

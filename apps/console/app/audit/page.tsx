@@ -1,7 +1,12 @@
 import { headers } from 'next/headers';
 import type { Metadata } from 'next';
+import { Flex, Text } from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
+import { AppShell } from '../../components/AppShell';
+import { Sidebar } from '../../components/Sidebar';
+import { PageHeader } from '../../components/PageHeader';
+import { RefreshButton } from '../../components/actions/RefreshButton';
 import { AuditClient } from './AuditClient';
 import { fetchAuditEvents, fetchDistinctActions, fetchDistinctTargetTypes } from '../../server/audit-data';
 import { DEFAULT_RANGE, resolveRange, type RangeKey } from '../../server/audit-filters';
@@ -94,7 +99,21 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
   });
 
   return (
-    <div className="page">
+    <AppShell sidebar={<Sidebar />}>
+      <PageHeader
+        headingId="audit-heading"
+        title="Audit trail"
+        subtitle="Time-ordered ledger of privileged console activity."
+        actions={(
+          <Flex align="center" gap="3" wrap="wrap">
+            <Text size="2" color="gray">
+              Signed in as {staffUser.displayName} ({staffUser.email})
+            </Text>
+            <RefreshButton label="Refresh" />
+          </Flex>
+        )}
+      />
+
       <section className="panel" aria-labelledby="audit-heading">
         <AuditClient
           initialEvents={initialData.events}
@@ -111,8 +130,15 @@ export default async function AuditPage({ searchParams }: { searchParams?: Searc
           availableActions={actions}
           availableTargetTypes={targetTypes}
           pageSize={pageSize}
+          renderHeader={(exportUrl) => (
+            <div className="audit-actions">
+              <a className="button secondary" href={exportUrl} rel="noopener noreferrer">
+                Export CSV
+              </a>
+            </div>
+          )}
         />
       </section>
-    </div>
+    </AppShell>
   );
 }
