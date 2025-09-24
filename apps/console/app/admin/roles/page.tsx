@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
@@ -27,6 +27,10 @@ type RolesApiResponse = {
 type FetchRolesResult =
   | { status: 401 | 403; data: null }
   | { status: 200; data: RolesApiResponse };
+
+type RolesDirectoryData =
+  | { kind: 'success'; result: FetchRolesResult }
+  | { kind: 'error'; error: unknown };
 
 function hasSecurityAdminRole(roles: string[]): boolean {
   return roles.some((role) => role.toLowerCase() === 'security_admin');
@@ -116,19 +120,15 @@ function RolesSkeleton() {
   );
 }
 
-async function RolesDirectorySection({
-  baseUrl,
-  headerEmail
+function RolesDirectorySection({
+  dataPromise
 }: {
-  baseUrl: string;
-  headerEmail: string | null;
+  dataPromise: Promise<RolesDirectoryData>;
 }) {
-  let rolesResult: FetchRolesResult;
+  const data = use(dataPromise);
 
-  try {
-    rolesResult = await fetchRoles(baseUrl, headerEmail);
-  } catch (error) {
-    console.error('failed to load roles', error);
+  if (data.kind === 'error') {
+    console.error('failed to load roles', data.error);
     return (
       <Callout.Root color="crimson" role="alert">
         <Flex align="center" justify="between" gap="3" wrap="wrap">
@@ -141,6 +141,8 @@ async function RolesDirectorySection({
     );
   }
 
+  const rolesResult = data.result;
+
   if (rolesResult.status === 401 || rolesResult.status === 403 || !rolesResult.data) {
     return (
       <Box py="9">
@@ -149,9 +151,9 @@ async function RolesDirectorySection({
     );
   }
 
-  const data = rolesResult.data;
+  const payload = rolesResult.data;
 
-  return <RoleManager roles={data.roles} members={data.members} />;
+  return <RoleManager roles={payload.roles} members={payload.members} />;
 }
 
 export default async function AdminRolesPage() {
@@ -195,6 +197,15 @@ export default async function AdminRolesPage() {
     </Flex>
   );
 
+  const rolesDataPromise: Promise<RolesDirectoryData> = (async () => {
+    try {
+      const result = await fetchRoles(baseUrl, headerEmail);
+      return { kind: 'success', result } as const;
+    } catch (error) {
+      return { kind: 'error', error } as const;
+    }
+  })();
+
   return (
     <AppShell sidebar={<Sidebar />}>
       <PageHeader
@@ -203,8 +214,7 @@ export default async function AdminRolesPage() {
         actions={headerActions}
       />
       <Suspense fallback={<RolesSkeleton />}>
-        {/* @ts-expect-error Async Server Component */}
-        <RolesDirectorySection baseUrl={baseUrl} headerEmail={headerEmail} />
+        <RolesDirectorySection dataPromise={rolesDataPromise} />
       </Suspense>
     </AppShell>
   );

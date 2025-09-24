@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Suspense } from 'react';
+import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
@@ -21,6 +21,10 @@ function hasSecurityAdminRole(roles: string[]): boolean {
 type FetchPeopleResult =
   | { status: 401 | 403; people: null }
   | { status: 200; people: AdminPersonRecord[] };
+
+type PeopleDirectoryData =
+  | { kind: 'success'; result: FetchPeopleResult }
+  | { kind: 'error'; error: unknown };
 
 async function fetchPeople(baseUrl: string, emailHeader: string | null): Promise<FetchPeopleResult> {
   const cookieStore = cookies();
@@ -92,19 +96,15 @@ function PeopleSkeleton() {
   );
 }
 
-async function PeopleDirectorySection({
-  baseUrl,
-  headerEmail
+function PeopleDirectorySection({
+  dataPromise
 }: {
-  baseUrl: string;
-  headerEmail: string | null;
+  dataPromise: Promise<PeopleDirectoryData>;
 }) {
-  let peopleResult: FetchPeopleResult;
+  const data = use(dataPromise);
 
-  try {
-    peopleResult = await fetchPeople(baseUrl, headerEmail);
-  } catch (error) {
-    console.error('failed to load staff directory', error);
+  if (data.kind === 'error') {
+    console.error('failed to load staff directory', data.error);
     return (
       <Callout.Root color="crimson" role="alert">
         <Flex align="center" justify="between" gap="3" wrap="wrap">
@@ -116,6 +116,8 @@ async function PeopleDirectorySection({
       </Callout.Root>
     );
   }
+
+  const peopleResult = data.result;
 
   if (peopleResult.status === 401 || peopleResult.status === 403 || !peopleResult.people) {
     return (
@@ -181,6 +183,15 @@ export default async function AdminPeoplePage() {
     </Flex>
   );
 
+  const peopleDataPromise: Promise<PeopleDirectoryData> = (async () => {
+    try {
+      const result = await fetchPeople(baseUrl, headerEmail);
+      return { kind: 'success', result } as const;
+    } catch (error) {
+      return { kind: 'error', error } as const;
+    }
+  })();
+
   return (
     <AppShell sidebar={<Sidebar />}>
       <PageHeader
@@ -189,8 +200,7 @@ export default async function AdminPeoplePage() {
         actions={headerActions}
       />
       <Suspense fallback={<PeopleSkeleton />}>
-        {/* @ts-expect-error Async Server Component */}
-        <PeopleDirectorySection baseUrl={baseUrl} headerEmail={headerEmail} />
+        <PeopleDirectorySection dataPromise={peopleDataPromise} />
       </Suspense>
     </AppShell>
   );
