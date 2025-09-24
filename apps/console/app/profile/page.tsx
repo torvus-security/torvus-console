@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import { Box, Button, Flex, Text } from '@radix-ui/themes';
@@ -8,6 +9,10 @@ import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
 import { PageHeader } from '../../components/PageHeader';
+
+export const metadata: Metadata = {
+  title: 'Profile',
+};
 
 async function saveProfileAction(
   _prevState: ProfileFormState,

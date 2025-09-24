@@ -21,11 +21,17 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/overview', label: 'Overview', permission: 'metrics.view', group: 'Operations' },
   { href: '/alerts', label: 'Alerts', group: 'Operations' },
-  { href: '/investigations', label: 'Investigations', permission: 'investigations.view', group: 'Operations' },
+  {
+    href: '/investigations',
+    label: 'Investigations',
+    permission: 'investigations.view',
+    group: 'Operations'
+  },
   { href: '/releases', label: 'Releases', permission: 'releases.simulate', group: 'Operations' },
-  { href: '/audit', label: 'Audit trail', permission: 'audit.read', group: 'Security' },
+  { href: '/security/events', label: 'Security events', permission: 'audit.read', group: 'Security' },
+  { href: '/security/policies', label: 'Policies', group: 'Security' },
   { href: '/admin/break-glass', label: 'Break Glass', permission: 'investigations.manage', group: 'Security' },
-  { href: '/profile', label: 'Profile', group: 'Account' }
+  { href: '/account/profile', label: 'Profile', group: 'Account' }
 ];
 
 const NAV_GROUP_ORDER: Array<NonNullable<NavItem['group']>> = ['Operations', 'Security', 'Account', 'Admin'];

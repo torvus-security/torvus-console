@@ -1,4 +1,5 @@
 import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
+import { PageHeader } from '../../../components/PageHeader';
 import {
   BreakGlassDashboard,
   type RoleOption,
@@ -69,12 +70,18 @@ export default async function BreakGlassAdminPage() {
     .filter((role) => role.name.length > 0);
 
   return (
-    <BreakGlassDashboard
-      staff={staff}
-      roles={roles}
-      canRequest={canRequest}
-      canApprove={canApprove}
-      currentUserId={staffUser.id}
-    />
+    <div className="flex flex-col gap-6 py-6">
+      <PageHeader
+        title="Break glass"
+        description="Emergency elevated access workflows managed by security administrators."
+      />
+      <BreakGlassDashboard
+        staff={staff}
+        roles={roles}
+        canRequest={canRequest}
+        canApprove={canApprove}
+        currentUserId={staffUser.id}
+      />
+    </div>
   );
 }
