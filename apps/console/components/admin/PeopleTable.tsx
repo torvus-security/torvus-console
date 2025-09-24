@@ -52,7 +52,11 @@ export function PeopleTable({ people }: PeopleTableProps) {
   const filtered = useMemo(() => filterPeople(people, query), [people, query]);
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
+    <section
+      className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl"
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">Filter staff by email or display name.</p>
         <label

@@ -11,6 +11,8 @@ import {
   type FormEvent
 } from 'react';
 import { Button, Callout, Flex } from '@radix-ui/themes';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonBlock } from '../../components/SkeletonBlock';
 
 export type PersonalAccessToken = {
   id: string;
@@ -326,7 +328,11 @@ export const PersonalAccessTokensPanel = forwardRef<
   }, [tokens]);
 
   return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-lg">
+    <section
+      className="flex flex-col gap-4 rounded-3xl border border-slate-700 bg-slate-900/60 p-6 shadow-lg"
+      role="status"
+      aria-live="polite"
+    >
       {showHeader ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col">
@@ -354,18 +360,27 @@ export const PersonalAccessTokensPanel = forwardRef<
           </Callout.Root>
         ) : null}
         {loading ? (
-          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/40 p-6 text-center text-sm text-slate-400">
-            Loading tokens…
+          <div className="rounded-2xl border border-slate-700/70 bg-slate-900/40 p-6" aria-hidden="true">
+            <div className="flex flex-col gap-4">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={index} className="flex flex-col gap-2 rounded-2xl border border-slate-800/70 bg-slate-900/60 p-4">
+                  <SkeletonBlock width="12rem" height="1rem" />
+                  <SkeletonBlock width="16rem" height="0.75rem" />
+                  <SkeletonBlock width="8rem" height="0.75rem" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : sortedTokens.length === 0 ? (
-          <Callout.Root color="gray" role="status">
-            <Flex align="center" justify="between" gap="3" wrap="wrap">
-              <Callout.Text>No tokens yet. Create one to automate workflows securely.</Callout.Text>
+          <EmptyState
+            title="No personal access tokens"
+            description="Create a token to generate API credentials tied to your account."
+            action={
               <Button color="iris" onClick={openCreate}>
                 Create token
               </Button>
-            </Flex>
-          </Callout.Root>
+            }
+          />
         ) : (
           <div className="flex flex-col gap-3">
             {sortedTokens.map((token) => (

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { AuditMetaDetails } from '../../components/AuditMetaDetails';
+import { EmptyState } from '../../components/EmptyState';
+import { SkeletonBlock } from '../../components/SkeletonBlock';
 
 type RangeOption = '24h' | '7d' | '30d' | 'custom';
 
@@ -319,10 +321,15 @@ export function AuditClient({
       return (
         <tr>
           <td colSpan={6} className="empty">
-            <div className="muted text-center">
-              <p className="font-medium">No audit events found for the selected filters.</p>
-              <p className="text-sm">Adjust filters or broaden the date range to see more activity.</p>
-            </div>
+            <EmptyState
+              title="No audit events found"
+              description="Try adjusting the filters or expanding the date range to uncover more activity."
+              action={
+                <button type="button" className="button ghost" onClick={onClearFilters}>
+                  Reset filters
+                </button>
+              }
+            />
           </td>
         </tr>
       );
@@ -330,13 +337,12 @@ export function AuditClient({
 
     if (loading && events.length === 0) {
       return Array.from({ length: 6 }).map((_, index) => (
-        <tr key={`skeleton-${index}`} className="table-skeleton">
-          <td><span className="skeleton-line" /></td>
-          <td><span className="skeleton-line" /></td>
-          <td><span className="skeleton-line" /></td>
-          <td><span className="skeleton-line" /></td>
-          <td><span className="skeleton-line" /></td>
-          <td><span className="skeleton-line" /></td>
+        <tr key={`skeleton-${index}`} aria-hidden="true">
+          {Array.from({ length: 6 }).map((__unused, cellIndex) => (
+            <td key={cellIndex}>
+              <SkeletonBlock height="1rem" className="my-2" />
+            </td>
+          ))}
         </tr>
       ));
     }
@@ -367,7 +373,7 @@ export function AuditClient({
         </td>
       </tr>
     ));
-  }, [events, loading, error]);
+  }, [events, loading, error, onClearFilters]);
 
   return (
     <div className="audit-ledger">
@@ -494,7 +500,7 @@ export function AuditClient({
 
       {error ? <div className="alert error">{error}</div> : null}
 
-      <div className="table-wrapper" role="region" aria-live="polite">
+      <div className="table-wrapper" role="status" aria-live="polite">
         <table>
           <thead>
             <tr>
