@@ -14,6 +14,7 @@ import { requireStaff } from '../../lib/auth';
 import { getAnalyticsClient } from '../../lib/analytics';
 import { countAlerts } from '../../lib/data/alerts';
 import { countInvestigations } from '../../lib/data/investigations';
+import { isSupabaseConfigured } from '../../lib/supabase';
 import { logAudit } from '../../server/audit';
 import { AppShell } from '../../components/AppShell';
 import { Sidebar } from '../../components/Sidebar';
@@ -141,9 +142,24 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
 }
 
 export default async function OverviewPage() {
-  const staffUser = await requireStaff({ permission: 'metrics.view' });
   const headerBag = headers();
   const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
+  const supabaseConfigured = isSupabaseConfigured();
+
+  if (!supabaseConfigured) {
+    return (
+      <AppShell sidebar={<Sidebar />}>
+        <PageHeader title="Overview" subtitle="Operations & security at a glance" />
+        <Card size="3">
+          <Text size="3" color="gray">
+            Supabase configuration is required to display overview metrics.
+          </Text>
+        </Card>
+      </AppShell>
+    );
+  }
+
+  const staffUser = await requireStaff({ permission: 'metrics.view' });
   const [stats, activeAlerts, openInvestigations] = await Promise.all([
     loadOverviewStats(correlationId),
     countAlerts(),
