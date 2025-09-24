@@ -6,9 +6,24 @@ import { Card, Flex, Heading, Text } from '@radix-ui/themes';
 export type AccessDeniedNoticeProps = {
   variant?: 'full' | 'card';
   className?: string;
+  debugInfo?: { requestId?: string | null; reason?: string | null };
 };
 
-export function AccessDeniedNotice({ variant = 'full', className }: AccessDeniedNoticeProps) {
+export function AccessDeniedNotice({ variant = 'full', className, debugInfo }: AccessDeniedNoticeProps) {
+  const isDebugEnv = process.env.NODE_ENV !== 'production';
+  const debugLines: string[] = [];
+
+  if (isDebugEnv && debugInfo) {
+    if (debugInfo.requestId) {
+      debugLines.push(`request ${debugInfo.requestId}`);
+    }
+    if (debugInfo.reason) {
+      debugLines.push(debugInfo.reason);
+    }
+  }
+
+  const debugMessage = debugLines.length ? `(${debugLines.join(' · ')})` : null;
+
   if (variant === 'card') {
     return (
       <Card
@@ -24,6 +39,11 @@ export function AccessDeniedNotice({ variant = 'full', className }: AccessDenied
           <Text size="2" color="gray" align="center">
             Torvus Console is restricted to enrolled staff. Contact Security Operations.
           </Text>
+          {debugMessage ? (
+            <Text size="1" color="gray" align="center" data-testid="access-denied-debug">
+              {debugMessage}
+            </Text>
+          ) : null}
         </Flex>
       </Card>
     );
@@ -33,6 +53,11 @@ export function AccessDeniedNotice({ variant = 'full', className }: AccessDenied
     <main className={clsx('unauthorised', className)}>
       <h1>Access denied</h1>
       <p>Torvus Console is restricted to enrolled staff. Contact Security Operations.</p>
+      {debugMessage ? (
+        <p className="access-denied-debug" data-testid="access-denied-debug">
+          {debugMessage}
+        </p>
+      ) : null}
     </main>
   );
 }

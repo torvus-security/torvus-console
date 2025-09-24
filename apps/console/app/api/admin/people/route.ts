@@ -43,6 +43,7 @@ export async function GET(request: Request) {
           staff_roles:staff_roles ( name )
         )`
     )
+    .is('staff_role_members.valid_to', null)
     .order('email', { ascending: true });
 
   if (error) {

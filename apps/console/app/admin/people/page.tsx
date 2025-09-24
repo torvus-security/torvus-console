@@ -25,7 +25,7 @@ async function fetchPeople(baseUrl: string, emailHeader: string | null): Promise
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('cf-access-authenticated-user-email', emailHeader);
+    headersMap.set('x-authenticated-staff-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/people`, {
@@ -67,8 +67,8 @@ export default async function AdminPeoplePage() {
   }
 
   const headerEmail =
-    headerBag.get('cf-access-authenticated-user-email')
-    ?? headerBag.get('Cf-Access-Authenticated-User-Email')
+    headerBag.get('x-authenticated-staff-email')
+    ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
   const { status, people } = await fetchPeople(baseUrl, headerEmail);

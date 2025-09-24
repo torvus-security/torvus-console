@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     .select('user_id')
     .eq('user_id', userId)
     .eq('role_id', roleId)
+    .is('valid_to', null)
     .maybeSingle();
 
   const { data: membershipRow, error: membershipError } = await membershipQuery;
@@ -88,7 +89,8 @@ export async function POST(request: Request) {
   if (canonicalRoleName.toLowerCase() === 'security_admin') {
     const { data: adminRows, error: adminError } = await (supabase.from('staff_role_members') as any)
       .select('user_id')
-      .eq('role_id', roleId);
+      .eq('role_id', roleId)
+      .is('valid_to', null);
 
     if (adminError) {
       console.error('Failed to evaluate security_admin membership', adminError);
@@ -109,7 +111,8 @@ export async function POST(request: Request) {
   const { error: deleteError } = await (supabase.from('staff_role_members') as any)
     .delete()
     .eq('user_id', userId)
-    .eq('role_id', roleId);
+    .eq('role_id', roleId)
+    .is('valid_to', null);
 
   if (deleteError) {
     console.error('Failed to unassign role', deleteError);

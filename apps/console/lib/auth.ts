@@ -4,18 +4,11 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './s
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
 import { getCfAccessEmail } from './auth/cfAccess';
+import { normaliseStaffEmail } from './auth/email';
 import type { PostgrestLikeOrSupabase } from './types';
 import { evaluateAccessGate } from './authz/gate';
 
 type MaybeRecord = Record<string, unknown>;
-
-function normaliseEmail(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed ? trimmed.toLowerCase() : null;
-}
 
 function getHeaderCaseInsensitive(headers: Headers, name: string): string | null {
   const direct = headers.get(name);
@@ -35,15 +28,15 @@ export function getRequesterEmail(req: Request | NextRequest): string | null {
   const headers = req.headers;
   const email =
     getHeaderCaseInsensitive(headers, 'x-authenticated-staff-email')
-    ?? getHeaderCaseInsensitive(headers, 'x-session-user-email');
-  return normaliseEmail(email);
+      ?? getHeaderCaseInsensitive(headers, 'x-session-user-email');
+  return normaliseStaffEmail(email);
 }
 
 export async function getUserRolesByEmail(
   email: string,
   client: PostgrestLikeOrSupabase
 ): Promise<string[]> {
-  const normalisedEmail = normaliseEmail(email);
+  const normalisedEmail = normaliseStaffEmail(email);
   if (!normalisedEmail) {
     return [];
   }
@@ -62,14 +55,14 @@ export async function getStaffUserByEmail(
   email: string,
   client: PostgrestLikeOrSupabase
 ): Promise<StaffUserRecord | null> {
-  const normalisedEmail = normaliseEmail(email);
+  const normalisedEmail = normaliseStaffEmail(email);
   if (!normalisedEmail) {
     return null;
   }
 
   const query = (client.from('staff_users') as any)
     .select('user_id, email, display_name')
-    .eq('email', normalisedEmail)
+    .ilike('email', normalisedEmail)
     .maybeSingle();
 
   const { data, error } = (await query) as {
@@ -87,7 +80,7 @@ export async function getStaffUserByEmail(
 
   return {
     user_id: data.user_id,
-    email: data.email.toLowerCase(),
+      email: data.email.toLowerCase(),
     display_name: data.display_name
   };
 }

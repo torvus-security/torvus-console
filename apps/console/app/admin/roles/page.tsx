@@ -36,7 +36,7 @@ async function fetchRoles(baseUrl: string, emailHeader: string | null): Promise<
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('cf-access-authenticated-user-email', emailHeader);
+    headersMap.set('x-authenticated-staff-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/roles`, {
@@ -78,8 +78,8 @@ export default async function AdminRolesPage() {
   }
 
   const headerEmail =
-    headerBag.get('cf-access-authenticated-user-email')
-    ?? headerBag.get('Cf-Access-Authenticated-User-Email')
+    headerBag.get('x-authenticated-staff-email')
+    ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
   const { status, data } = await fetchRoles(baseUrl, headerEmail);

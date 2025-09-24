@@ -1,4 +1,5 @@
 import { createSupabaseServiceRoleClient } from '../supabase';
+import { normaliseStaffEmail } from '../auth/email';
 
 export type StaffDirectoryEntry = {
   id: string;
@@ -56,26 +57,18 @@ async function fetchRolesForUserIds(userIds: string[]): Promise<Map<string, stri
 
   const { data, error } = await (supabase.from('staff_role_members') as any)
     .select('user_id, valid_to, granted_via, staff_roles ( name )')
-    .in('user_id', userIds);
+    .in('user_id', userIds)
+    .is('valid_to', null);
 
   if (error) {
     throw error;
   }
 
   const memberships = (data as StaffRoleMembershipRow[] | null) ?? [];
-  const now = new Date();
-
   for (const membership of memberships) {
     const grantedVia = membership.granted_via ?? 'normal';
     if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
       continue;
-    }
-
-    if (membership.valid_to) {
-      const validTo = new Date(membership.valid_to);
-      if (validTo <= now) {
-        continue;
-      }
     }
 
     const roleName = membership.staff_roles?.name;
@@ -94,11 +87,16 @@ async function fetchRolesForUserIds(userIds: string[]): Promise<Map<string, stri
 }
 
 export async function getCurrentStaffWithRoles(email: string): Promise<StaffDirectoryEntry | null> {
+  const normalisedEmail = normaliseStaffEmail(email);
+  if (!normalisedEmail) {
+    return null;
+  }
+
   const supabase = createSupabaseServiceRoleClient();
 
   const { data, error } = await (supabase.from('staff_users') as any)
     .select('user_id, email, display_name, passkey_enrolled')
-    .eq('email', email.toLowerCase())
+    .ilike('email', normalisedEmail)
     .maybeSingle();
 
   if (error) {

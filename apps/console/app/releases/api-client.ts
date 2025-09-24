@@ -22,8 +22,8 @@ function resolveBaseUrl(): { baseUrl: string; emailHeader: string | null; cookie
   }
 
   const headerEmail =
-    headerBag.get('cf-access-authenticated-user-email')
-    ?? headerBag.get('Cf-Access-Authenticated-User-Email');
+    headerBag.get('x-authenticated-staff-email')
+    ?? headerBag.get('x-session-user-email');
 
   const cookieStore = cookies();
   const cookieHeader = cookieStore
@@ -42,7 +42,7 @@ export async function callReleasesApi<T>(path: string, options: ApiCallOptions =
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('cf-access-authenticated-user-email', emailHeader);
+    headersMap.set('x-authenticated-staff-email', emailHeader);
   }
   headersMap.set('accept', 'application/json');
 

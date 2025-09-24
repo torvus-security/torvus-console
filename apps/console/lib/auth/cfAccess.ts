@@ -1,5 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { normaliseStaffEmail } from './email';
 
 type MaybeRecord = Record<string, unknown>;
 
@@ -55,14 +56,6 @@ function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
   }
 
   return jwks;
-}
-
-function normaliseEmail(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed ? trimmed.toLowerCase() : null;
 }
 
 function readAccessJwt(): string | null {
@@ -121,12 +114,24 @@ export async function getCfAccessClaims(): Promise<CfAccessClaims | null> {
 }
 
 export async function getCfAccessEmail(): Promise<string | null> {
+  const headerBag = headers();
+  const forwardedEmail =
+    headerBag.get('x-authenticated-staff-email') ??
+    headerBag.get('x-session-user-email') ??
+    headerBag.get('CF-Access-Authenticated-User-Email') ??
+    headerBag.get('cf-access-authenticated-user-email');
+
+  const normalisedHeader = normaliseStaffEmail(forwardedEmail);
+  if (normalisedHeader) {
+    return normalisedHeader;
+  }
+
   const claims = await getCfAccessClaims();
   if (!claims) {
     return null;
   }
 
-  const claimEmail = normaliseEmail(
+  const claimEmail = normaliseStaffEmail(
     (claims?.email as string | undefined)
       ?? (typeof claims?.preferred_username === 'string' ? claims.preferred_username : undefined)
       ?? (typeof claims?.name === 'string' ? claims.name : undefined)
