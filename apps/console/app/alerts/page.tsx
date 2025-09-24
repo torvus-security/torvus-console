@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { PageHeader } from '../../components/PageHeader';
 import { getStaffUser } from '../../lib/auth';
 import { listAlerts } from '../../lib/data/alerts';
 
@@ -169,6 +170,7 @@ export default async function AlertsPage() {
 
   return (
     <div className="flex flex-col gap-8 py-6">
+      <PageHeader title="Alerts" description="Monitor incidents raised by Torvus detection sources." />
       <Suspense fallback={<AlertsSkeleton />}>
         <AlertsListSection />
       </Suspense>

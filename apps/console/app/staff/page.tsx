@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { PageHeader } from '../../components/PageHeader';
 import { StaffTable } from '../../components/StaffTable';
 import { getStaffUser } from '../../lib/auth';
 import { getAllStaffWithRoles, getCurrentStaffWithRoles } from '../../lib/data/staff';
@@ -49,6 +50,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
 
     return (
       <div className="flex flex-col gap-8 py-6">
+        <PageHeader title="Staff directory" description="Manage Torvus operators and assigned roles." />
         <StaffTable staff={staff} query={query} page={page} pageSize={PAGE_SIZE} totalCount={count} />
       </div>
     );

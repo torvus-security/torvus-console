@@ -1,7 +1,9 @@
 "use client";
 
-import Link from 'next/link';
+import type { CSSProperties } from 'react';
+import NextLink from 'next/link';
 import { usePathname } from 'next/navigation';
+import clsx from 'clsx';
 import { Box, Flex, Text } from '@radix-ui/themes';
 
 export type SidebarNavItem = {
@@ -29,13 +31,30 @@ function NavLink({ href, label }: SidebarNavItem) {
   const isActive = isExactMatch || isNestedMatch;
 
   return (
-    <Box
+    <Text
       asChild
-      data-active={isActive ? 'true' : undefined}
-      className="block rounded-md px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-200/60 hover:text-slate-900 data-[active=true]:bg-slate-200 data-[active=true]:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-700/50 dark:hover:text-slate-100 dark:data-[active=true]:bg-slate-700/70 dark:data-[active=true]:text-slate-50"
+      size="2"
+      weight={isActive ? 'medium' : 'regular'}
+      color={isActive ? 'iris' : 'gray'}
+      className={clsx(
+        'block rounded-r-md border-l-2 px-3 py-2 transition-colors',
+        'border-transparent hover:border-slate-400 hover:bg-slate-200/60 dark:hover:border-slate-600 dark:hover:bg-slate-700/40',
+        !isActive && 'hover:text-slate-900 dark:hover:text-slate-100'
+      )}
+      style={
+        isActive
+          ? ({
+              borderLeftColor: 'var(--accent-9)',
+              backgroundColor: 'var(--accent-4)',
+              color: 'var(--accent-12)'
+            } satisfies CSSProperties)
+          : undefined
+      }
     >
-      <Link href={href}>{label}</Link>
-    </Box>
+      <NextLink href={href} aria-current={isActive ? 'page' : undefined}>
+        {label}
+      </NextLink>
+    </Text>
   );
 }
 
