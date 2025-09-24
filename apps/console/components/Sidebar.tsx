@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { Box, Separator, Text } from '@radix-ui/themes';
+import { Box, Flex, Separator, Text } from '@radix-ui/themes';
 
 const NAV_SECTIONS: Array<{ title: string; items: Array<{ label: string; href: string }> }> = [
   {
@@ -63,22 +63,22 @@ function NavLink({ href, children }: NavLinkProps) {
 
 export function Sidebar() {
   return (
-    <Box display="flex" flexDirection="column" gap="5">
+    <Flex direction="column" gap="5">
       {NAV_SECTIONS.map((section, index) => (
         <Box key={section.title}>
           <Text size="1" color="gray" weight="medium" className="uppercase tracking-wide">
             {section.title}
           </Text>
-          <Box mt="2" display="flex" flexDirection="column" gap="1">
+          <Flex mt="2" direction="column" gap="1">
             {section.items.map((item) => (
               <NavLink key={item.href} href={item.href}>
                 {item.label}
               </NavLink>
             ))}
-          </Box>
+          </Flex>
           {index < NAV_SECTIONS.length - 1 ? <Separator my="4" size="4" /> : null}
         </Box>
       ))}
-    </Box>
+    </Flex>
   );
 }

@@ -8,30 +8,27 @@ export type AppShellProps = {
 
 export function AppShell({ sidebar, children }: AppShellProps) {
   return (
-    <Box minHeight="100dvh" display="flex">
+    <Box minHeight="100dvh">
       <Grid
         columns={{ initial: '1fr', md: '280px 1fr' }}
         width="100%"
         height="100%"
+        style={{ minHeight: '100dvh' }}
       >
-        <Box display={{ initial: 'none', md: 'flex' }} height="100%">
+        <Box className="hidden h-full md:block">
           <ScrollArea
             type="auto"
             scrollbars="vertical"
             style={{ height: '100%', borderRight: '1px solid var(--gray-5)' }}
           >
-            <Box padding="5">{sidebar}</Box>
+            <Box p="5">{sidebar}</Box>
           </ScrollArea>
         </Box>
 
         <Box height="100%">
           <ScrollArea type="auto" scrollbars="vertical" style={{ height: '100%' }}>
-            <Box
-              width="100%"
-              paddingX={{ initial: '4', sm: '5' }}
-              paddingY="6"
-            >
-              <Box maxWidth="1240px" marginX="auto">
+            <Box width="100%" className="w-full px-4 py-6 sm:px-5">
+              <Box className="mx-auto" style={{ maxWidth: '1240px' }}>
                 {children}
               </Box>
             </Box>
