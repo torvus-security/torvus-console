@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
+import { PageHeader } from '../../components/PageHeader';
 import { callReleasesApi } from './api-client';
 
 type StaffSummary = {
@@ -50,16 +51,19 @@ export default async function ReleasesPage() {
   const { requests } = data;
 
   return (
-    <div className="page space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-white">Release requests</h1>
-        <Link
-          href="/releases/new"
-          className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400"
-        >
-          New release
-        </Link>
-      </div>
+    <div className="page flex flex-col gap-6">
+      <PageHeader
+        title="Release requests"
+        description="Dual-control automation for production changes."
+        actions={
+          <Link
+            href="/releases/new"
+            className="inline-flex items-center rounded-md bg-emerald-500 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-400"
+          >
+            New release
+          </Link>
+        }
+      />
 
       <div className="panel" aria-labelledby="release-requests-heading">
         <div className="panel__header">
