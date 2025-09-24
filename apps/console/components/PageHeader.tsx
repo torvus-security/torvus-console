@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactNode } from 'react';
 import { Box, Flex, Heading, Separator, Text } from '@radix-ui/themes';
 
