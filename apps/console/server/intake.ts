@@ -690,6 +690,7 @@ async function resolveAutomationActor(): Promise<AutomationActor | null> {
   try {
     const { data, error } = await (supabase.from('staff_users') as any)
       .select('user_id, email, staff_role_members!inner(staff_roles!inner(name))')
+      .is('staff_role_members.valid_to', null)
       .eq('staff_role_members.staff_roles.name', 'security_admin')
       .order('created_at', { ascending: true })
       .limit(1)

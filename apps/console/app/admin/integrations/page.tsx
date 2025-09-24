@@ -30,7 +30,7 @@ async function fetchIntegrations(baseUrl: string, emailHeader: string | null): P
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('cf-access-authenticated-user-email', emailHeader);
+    headersMap.set('x-authenticated-staff-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/integrations`, {
@@ -72,8 +72,8 @@ export default async function AdminIntegrationsPage() {
   }
 
   const headerEmail =
-    headerBag.get('cf-access-authenticated-user-email')
-    ?? headerBag.get('Cf-Access-Authenticated-User-Email')
+    headerBag.get('x-authenticated-staff-email')
+    ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
   const { status, data } = await fetchIntegrations(baseUrl, headerEmail);

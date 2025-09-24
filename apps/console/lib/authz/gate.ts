@@ -1,9 +1,6 @@
 import { createSupabaseServiceRoleClient } from '../supabase';
 import type { PostgrestLikeOrSupabase } from '../types';
-
-function normaliseEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
+import { normaliseStaffEmail } from '../auth/email';
 
 function isDebugLoggingEnabled(): boolean {
   return (process.env.LOG_LEVEL ?? '').toLowerCase() === 'debug';
@@ -50,8 +47,7 @@ export async function evaluateAccessGate(
   normalisedEmail: string,
   options?: { client?: PostgrestLikeOrSupabase }
 ): Promise<AccessGateEvaluation> {
-  const trimmedEmail = normalisedEmail.trim();
-  const email = trimmedEmail ? normaliseEmail(trimmedEmail) : '';
+  const email = normaliseStaffEmail(normalisedEmail) ?? '';
 
   if (!email) {
     const result: AccessGateEvaluation = {
@@ -94,7 +90,8 @@ export async function evaluateAccessGate(
         staff_roles:staff_roles ( name )
       )`
     )
-    .eq('email', email)
+    .ilike('email', email)
+    .is('staff_role_members.valid_to', null)
     .maybeSingle();
 
   const { data, error } = (await query) as {

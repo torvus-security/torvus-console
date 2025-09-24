@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getRequesterEmail, getUserRolesByEmail } from '../../lib/auth';
+import { getRequesterEmail, getUserRolesByEmail, getStaffUserByEmail } from '../../lib/auth';
 
 describe('getRequesterEmail', () => {
   it('prefers authenticated staff header and normalises casing', () => {
@@ -63,8 +63,9 @@ describe('getUserRolesByEmail', () => {
       error: null
     }));
 
-    const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq, maybeSingle }));
+    const isFn = vi.fn(() => ({ maybeSingle }));
+    const ilike = vi.fn(() => ({ is: isFn, maybeSingle }));
+    const select = vi.fn(() => ({ ilike, is: isFn, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];
@@ -73,7 +74,8 @@ describe('getUserRolesByEmail', () => {
       const roles = await getUserRolesByEmail('Admin@Example.com', client);
 
       expect(from).toHaveBeenCalledWith('staff_users');
-      expect(eq).toHaveBeenCalledWith('email', 'admin@example.com');
+      expect(ilike).toHaveBeenCalledWith('email', 'admin@example.com');
+      expect(isFn).toHaveBeenCalledWith('staff_role_members.valid_to', null);
       expect(roles).toEqual(['investigator', 'security_admin']);
     } finally {
       vi.useRealTimers();
@@ -93,8 +95,8 @@ describe('getUserRolesByEmail', () => {
   it('returns empty array when record not found', async () => {
     const maybeSingle = vi.fn(async () => ({ data: null, error: { code: 'PGRST116' } }));
     const isFn = vi.fn(() => ({ maybeSingle }));
-    const eq = vi.fn(() => ({ is: isFn, maybeSingle }));
-    const select = vi.fn(() => ({ eq, is: isFn, maybeSingle }));
+    const ilike = vi.fn(() => ({ is: isFn, maybeSingle }));
+    const select = vi.fn(() => ({ ilike, is: isFn, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];
@@ -102,5 +104,30 @@ describe('getUserRolesByEmail', () => {
     const roles = await getUserRolesByEmail('unknown@example.com', client);
 
     expect(roles).toEqual([]);
+  });
+});
+
+describe('getStaffUserByEmail', () => {
+  it('matches mixed-case email records', async () => {
+    const maybeSingle = vi.fn(async () => ({
+      data: { user_id: 'user-1', email: 'ADMIN@Example.com', display_name: 'Admin Example' },
+      error: null
+    }));
+
+    const ilike = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ ilike, maybeSingle }));
+    const from = vi.fn(() => ({ select }));
+
+    const client = { from } as unknown as Parameters<typeof getStaffUserByEmail>[1];
+
+    const record = await getStaffUserByEmail('Admin@Example.com', client);
+
+    expect(from).toHaveBeenCalledWith('staff_users');
+    expect(ilike).toHaveBeenCalledWith('email', 'admin@example.com');
+    expect(record).toEqual({
+      user_id: 'user-1',
+      email: 'admin@example.com',
+      display_name: 'Admin Example'
+    });
   });
 });

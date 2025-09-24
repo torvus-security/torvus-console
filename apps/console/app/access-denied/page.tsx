@@ -1,5 +1,16 @@
+import { headers } from 'next/headers';
 import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 
 export default function AccessDeniedPage() {
-  return <AccessDeniedNotice />;
+  const headerBag = headers();
+  const correlationId = headerBag.get('x-correlation-id');
+  const denyReasons = headerBag.get('x-access-deny-reasons');
+
+  const requestId = correlationId?.trim() ? correlationId.trim().slice(0, 8) : null;
+  const reason = denyReasons
+    ?.split(';')
+    .map((entry) => entry.trim())
+    .find((entry) => entry.length > 0);
+
+  return <AccessDeniedNotice debugInfo={{ requestId, reason }} />;
 }

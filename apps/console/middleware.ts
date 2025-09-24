@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { verifyCfAccessAssertion } from './lib/auth/cfAccess';
+import { normaliseStaffEmail } from './lib/auth/email';
 import { buildReportToHeader, generateNonce } from './lib/security';
 import { evaluateAccessGate } from './lib/authz/gate';
 
@@ -78,14 +79,6 @@ function isProtectedApiPath(pathname: string): boolean {
   return !PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
-function normaliseEmail(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
-
 function readAccessAssertion(request: NextRequest): string | null {
   const headerAssertion =
     request.headers.get('Cf-Access-Jwt-Assertion') ?? request.headers.get('cf-access-jwt-assertion');
@@ -100,6 +93,14 @@ function readAccessAssertion(request: NextRequest): string | null {
   }
 
   return null;
+}
+
+function readCfAuthenticatedEmailHeader(request: NextRequest): string | null {
+  const headerValue =
+    request.headers.get('CF-Access-Authenticated-User-Email') ??
+    request.headers.get('cf-access-authenticated-user-email');
+
+  return normaliseStaffEmail(headerValue);
 }
 
 async function fetchReadOnlyState(): Promise<ReadOnlyState> {
@@ -249,7 +250,7 @@ export async function middleware(request: NextRequest) {
         const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION ? Boolean(metadata.is_staff) : true;
 
         if (isStaffSession) {
-          authenticatedEmail = normaliseEmail(user.email ?? null);
+          authenticatedEmail = normaliseStaffEmail(user.email ?? null);
           authenticatedMethod = 'supabase';
           sessionUserId = user.id;
         }
@@ -260,19 +261,25 @@ export async function middleware(request: NextRequest) {
   }
 
   if (!authenticatedEmail && allowCfForRequest) {
-    const assertion = readAccessAssertion(request);
-    if (assertion) {
-      const claims = await verifyCfAccessAssertion(assertion);
-      if (claims) {
-        const claimEmail = normaliseEmail(
-          (claims.email as string | undefined)
-            ?? (typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined)
-            ?? (typeof claims.name === 'string' ? claims.name : undefined)
-        );
+    const headerEmail = readCfAuthenticatedEmailHeader(request);
+    if (headerEmail) {
+      authenticatedEmail = headerEmail;
+      authenticatedMethod = 'cf-access';
+    } else {
+      const assertion = readAccessAssertion(request);
+      if (assertion) {
+        const claims = await verifyCfAccessAssertion(assertion);
+        if (claims) {
+          const claimEmail = normaliseStaffEmail(
+            (claims.email as string | undefined)
+              ?? (typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined)
+              ?? (typeof claims.name === 'string' ? claims.name : undefined)
+          );
 
-        if (claimEmail) {
-          authenticatedEmail = claimEmail;
-          authenticatedMethod = 'cf-access';
+          if (claimEmail) {
+            authenticatedEmail = claimEmail;
+            authenticatedMethod = 'cf-access';
+          }
         }
       }
     }

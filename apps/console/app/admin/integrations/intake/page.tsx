@@ -29,7 +29,7 @@ async function fetchIntakeData(baseUrl: string, emailHeader: string | null): Pro
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('cf-access-authenticated-user-email', emailHeader);
+    headersMap.set('x-authenticated-staff-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/integrations/intake`, {
@@ -74,8 +74,8 @@ export default async function IntakeIntegrationsPage() {
   const baseUrl = resolveBaseUrl();
   const headerBag = headers();
   const headerEmail =
-    headerBag.get('cf-access-authenticated-user-email')
-    ?? headerBag.get('Cf-Access-Authenticated-User-Email')
+    headerBag.get('x-authenticated-staff-email')
+    ?? headerBag.get('x-session-user-email')
     ?? staffUser.email;
 
   const { status, data } = await fetchIntakeData(baseUrl, headerEmail);

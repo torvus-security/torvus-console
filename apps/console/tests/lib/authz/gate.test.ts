@@ -6,7 +6,7 @@ type StubClient = PostgrestLikeOrSupabase & {
   __internals: {
     maybeSingle: ReturnType<typeof vi.fn>;
     select: ReturnType<typeof vi.fn>;
-    eq: ReturnType<typeof vi.fn>;
+    ilike: ReturnType<typeof vi.fn>;
     isFn: ReturnType<typeof vi.fn>;
   };
 };
@@ -14,13 +14,13 @@ type StubClient = PostgrestLikeOrSupabase & {
 function createStubClient(data: unknown, error: unknown = null): StubClient {
   const maybeSingle = vi.fn(async () => ({ data, error }));
   const isFn = vi.fn(() => ({ maybeSingle }));
-  const eq = vi.fn(() => ({ is: isFn, maybeSingle }));
-  const select = vi.fn(() => ({ eq, is: isFn, maybeSingle }));
+  const ilike = vi.fn(() => ({ is: isFn, maybeSingle }));
+  const select = vi.fn(() => ({ ilike, is: isFn, maybeSingle }));
   const from = vi.fn(() => ({ select }));
 
   return {
     from,
-    __internals: { maybeSingle, select, eq, isFn }
+    __internals: { maybeSingle, select, ilike, isFn }
   } as unknown as StubClient;
 }
 
@@ -50,6 +50,8 @@ describe('evaluateAccessGate', () => {
     const result = await evaluateAccessGate('Admin@Example.com', { client });
 
     expect(client.from).toHaveBeenCalledWith('staff_users');
+    expect(client.__internals.ilike).toHaveBeenCalledWith('email', 'admin@example.com');
+    expect(client.__internals.isFn).toHaveBeenCalledWith('staff_role_members.valid_to', null);
     expect(result.allowed).toBe(true);
     expect(result.reasons).toEqual([]);
     expect(result.flags).toEqual({
