@@ -1,6 +1,11 @@
 import { cache } from 'react';
 import type { NextRequest } from 'next/server';
-import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './supabase';
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+  SupabaseConfigurationError,
+  isSupabaseConfigured
+} from './supabase';
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
 import { getCfAccessEmail } from './auth/cfAccess';
@@ -110,8 +115,43 @@ export class StaffAccessError extends Error {
 
 const FEATURE_REQUIRE_STAFF_SESSION = process.env.FEATURE_REQUIRE_STAFF_SESSION === 'true';
 
+let supabaseConfigWarningLogged = false;
+
+function noteMissingSupabaseConfig(error: unknown): boolean {
+  if (!(error instanceof SupabaseConfigurationError)) {
+    return false;
+  }
+
+  if (!supabaseConfigWarningLogged) {
+    console.warn('Supabase configuration is incomplete; continuing without Supabase-backed data.', {
+      missing: error.missing
+    });
+    supabaseConfigWarningLogged = true;
+  }
+
+  return true;
+}
+
 export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
-  const supabase = createSupabaseServerClient();
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  let supabase: ReturnType<typeof createSupabaseServerClient> | null = null;
+
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (error) {
+    if (!noteMissingSupabaseConfig(error)) {
+      throw error;
+    }
+    return null;
+  }
+
+  if (!supabase) {
+    return null;
+  }
+
   const { data, error } = await supabase.auth.getUser();
   if (error) {
     console.error('Failed to resolve session user', error);
@@ -155,7 +195,24 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     return null;
   }
 
-  const supabase = createSupabaseServiceRoleClient();
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  let supabase: ReturnType<typeof createSupabaseServiceRoleClient> | null = null;
+
+  try {
+    supabase = createSupabaseServiceRoleClient();
+  } catch (error) {
+    if (!noteMissingSupabaseConfig(error)) {
+      throw error;
+    }
+    return null;
+  }
+
+  if (!supabase) {
+    return null;
+  }
 
   const evaluation = await evaluateAccessGate(email, { client: supabase });
 

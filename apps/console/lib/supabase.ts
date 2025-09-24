@@ -4,11 +4,28 @@ import { cookies } from 'next/headers';
 
 const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE'] as const;
 
+export class SupabaseConfigurationError extends Error {
+  missing: string[];
+
+  constructor(missing: string[]) {
+    super(
+      missing.length === 1
+        ? `Missing required environment variable ${missing[0]}`
+        : `Missing required environment variables: ${missing.join(', ')}`
+    );
+    this.name = 'SupabaseConfigurationError';
+    this.missing = missing;
+  }
+}
+
+export function isSupabaseConfigured(): boolean {
+  return requiredEnv.every((key) => Boolean(process.env[key]));
+}
+
 function assertEnv() {
-  for (const key of requiredEnv) {
-    if (!process.env[key]) {
-      throw new Error(`Missing required environment variable ${key}`);
-    }
+  const missing = requiredEnv.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new SupabaseConfigurationError(missing);
   }
 }
 

@@ -12,6 +12,7 @@ import '../styles/tokens.css';
 import '../styles/globals.css';
 import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
+import { isSupabaseConfigured } from '../lib/supabase';
 import { formatBreadcrumb } from '../lib/breadcrumbs';
 import { IdentityPill } from '../components/IdentityPill';
 import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
@@ -35,7 +36,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
 
   const showMinimalShell = pathname.startsWith('/enroll-passkey');
 
-  const staffUser = await getStaffUser();
+  const supabaseConfigured = isSupabaseConfigured();
 
   const themeProps = {
     appearance: 'dark' as const,
@@ -45,6 +46,27 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     radius: 'large' as const,
     scaling: '100%' as const
   };
+
+  if (!supabaseConfigured) {
+    return (
+      <html lang="en" data-theme="torvus-staff">
+        <body data-correlation={correlationId} className="body-minimal">
+          <Theme {...themeProps}>
+            <div className="unauthorised" role="alert">
+              <h1>Torvus Console</h1>
+              <p>Supabase configuration is required before the console can be used.</p>
+              <p className="muted">
+                Set <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, and <code>SUPABASE_SERVICE_ROLE</code> in the
+                environment.
+              </p>
+            </div>
+          </Theme>
+        </body>
+      </html>
+    );
+  }
+
+  const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
