@@ -291,36 +291,52 @@ export default async function OverviewPage() {
               <dl>
                 <Grid columns={{ initial: '1', sm: '2' }} gap="3">
                   <Flex direction="column" gap="1">
-                    <Text as="dt" size="2" color="gray">
-                      Environment
-                    </Text>
-                    <Text as="dd" size="3">
-                      {process.env.NODE_ENV}
-                    </Text>
+                    <Box as="dt">
+                      <Text as="span" size="2" color="gray">
+                        Environment
+                      </Text>
+                    </Box>
+                    <Box as="dd">
+                      <Text as="span" size="3">
+                        {process.env.NODE_ENV}
+                      </Text>
+                    </Box>
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Text as="dt" size="2" color="gray">
-                      Feature flag
-                    </Text>
-                    <Text as="dd" size="3">
-                      {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
-                    </Text>
+                    <Box as="dt">
+                      <Text as="span" size="2" color="gray">
+                        Feature flag
+                      </Text>
+                    </Box>
+                    <Box as="dd">
+                      <Text as="span" size="3">
+                        {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
+                      </Text>
+                    </Box>
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Text as="dt" size="2" color="gray">
-                      Supabase project
-                    </Text>
-                    <Text as="dd" size="3">
-                      {process.env.SUPABASE_URL ?? 'unset'}
-                    </Text>
+                    <Box as="dt">
+                      <Text as="span" size="2" color="gray">
+                        Supabase project
+                      </Text>
+                    </Box>
+                    <Box as="dd">
+                      <Text as="span" size="3">
+                        {process.env.SUPABASE_URL ?? 'unset'}
+                      </Text>
+                    </Box>
                   </Flex>
                   <Flex direction="column" gap="1">
-                    <Text as="dt" size="2" color="gray">
-                      Correlation ID
-                    </Text>
-                    <Text as="dd" size="3">
-                      {correlationId}
-                    </Text>
+                    <Box as="dt">
+                      <Text as="span" size="2" color="gray">
+                        Correlation ID
+                      </Text>
+                    </Box>
+                    <Box as="dd">
+                      <Text as="span" size="3">
+                        {correlationId}
+                      </Text>
+                    </Box>
                   </Flex>
                 </Grid>
               </dl>
