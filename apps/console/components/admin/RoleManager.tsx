@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import clsx from 'clsx';
+import { EmptyState } from '../EmptyState';
+import { InviteStaffButton } from '../actions/InviteStaffButton';
 
 type RoleDefinition = {
   id: string;
@@ -227,7 +229,11 @@ export function RoleManager({ roles, members }: RoleManagerProps) {
   }
 
   return (
-    <section className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
+    <section
+      className="flex flex-col gap-6 rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl"
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-400">Filter members by email or name.</p>
         <label
@@ -262,54 +268,64 @@ export function RoleManager({ roles, members }: RoleManagerProps) {
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
-        <div className="overflow-hidden rounded-2xl border border-slate-800/70">
-          <table className="min-w-full divide-y divide-slate-800/80 text-left text-sm text-slate-200">
-            <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
-              <tr>
-                <th scope="col" className="px-6 py-3">
-                  Email
-                </th>
-                <th scope="col" className="px-6 py-3">
-                  Display name
-                </th>
-                <th scope="col" className="px-6 py-3">
-                  Roles
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {filteredMembers.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-6 py-12 text-center text-sm text-slate-400">
-                    No staff members match your filter.
-                  </td>
-                </tr>
-              ) : (
-                filteredMembers.map((member) => (
-                  <tr key={member.user_id} className="transition hover:bg-slate-800/40">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-100">{member.email}</td>
-                    <td className="px-6 py-4 text-sm text-slate-300">{member.display_name ?? '—'}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        {member.roles.length ? (
-                          member.roles.map((role) => (
-                            <RoleChip
-                              key={`${member.user_id}-${role}`}
-                              role={role}
-                              disabled={pendingAction !== null}
-                              onRemove={() => removeRole(member.user_id, role)}
-                            />
-                          ))
-                        ) : (
-                          <span className="text-xs text-slate-500">—</span>
-                        )}
-                      </div>
-                    </td>
+        <div className="flex flex-col gap-4">
+          {records.length === 0 ? (
+            <EmptyState
+              title="No staff yet"
+              description="Invite administrators before assigning roles."
+              action={<InviteStaffButton />}
+            />
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-slate-800/70">
+              <table className="min-w-full divide-y divide-slate-800/80 text-left text-sm text-slate-200">
+                <thead className="bg-slate-900/80 text-xs uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th scope="col" className="px-6 py-3">
+                      Email
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      Display name
+                    </th>
+                    <th scope="col" className="px-6 py-3">
+                      Roles
+                    </th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredMembers.length === 0 ? (
+                    <tr>
+                      <td colSpan={3} className="px-6 py-12 text-center text-sm text-slate-400">
+                        No staff members match your filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredMembers.map((member) => (
+                      <tr key={member.user_id} className="transition hover:bg-slate-800/40">
+                        <td className="px-6 py-4 text-sm font-medium text-slate-100">{member.email}</td>
+                        <td className="px-6 py-4 text-sm text-slate-300">{member.display_name ?? '—'}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            {member.roles.length ? (
+                              member.roles.map((role) => (
+                                <RoleChip
+                                  key={`${member.user_id}-${role}`}
+                                  role={role}
+                                  disabled={pendingAction !== null}
+                                  onRemove={() => removeRole(member.user_id, role)}
+                                />
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-500">—</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <aside
