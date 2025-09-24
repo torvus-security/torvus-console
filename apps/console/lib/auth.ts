@@ -4,10 +4,8 @@ import { createSupabaseServerClient, createSupabaseServiceRoleClient } from './s
 import type { PermissionKey } from './rbac';
 import { anonymiseEmail } from './analytics';
 import { getCfAccessEmail } from './auth/cfAccess';
-
-export type PostgrestLikeOrSupabase = {
-  from: (table: string) => unknown;
-};
+import type { PostgrestLikeOrSupabase } from './types';
+import { evaluateAccessGate } from './authz/gate';
 
 type MaybeRecord = Record<string, unknown>;
 
@@ -50,58 +48,8 @@ export async function getUserRolesByEmail(
     return [];
   }
 
-  type RoleMembershipRow = {
-    staff_role_members?: Array<{
-      valid_to: string | null;
-      granted_via: string | null;
-      staff_roles?: {
-        name: string | null;
-      } | null;
-    }> | null;
-  } | null;
-
-  const query = (client.from('staff_users') as any)
-    .select(
-      `staff_role_members:staff_role_members (
-        valid_to,
-        granted_via,
-        staff_roles:staff_roles ( name )
-      )`
-    )
-    .eq('email', normalisedEmail)
-    .maybeSingle();
-
-  const { data, error } = (await query) as {
-    data: RoleMembershipRow;
-    error: { code?: string } | null;
-  };
-
-  if (error && error.code !== 'PGRST116') {
-    throw error;
-  }
-
-  const memberships = data?.staff_role_members ?? [];
-  const now = new Date();
-  const roles = memberships
-    .filter((membership) => {
-      const grantedVia = membership?.granted_via ?? 'normal';
-      if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
-        return false;
-      }
-
-      const validTo = membership?.valid_to ? new Date(membership.valid_to) : null;
-      if (validTo && validTo <= now) {
-        return false;
-      }
-
-      return true;
-    })
-    .map((membership) => membership?.staff_roles?.name?.trim() ?? null)
-    .filter((role): role is string => Boolean(role));
-
-  const uniqueRoles = Array.from(new Set(roles));
-  uniqueRoles.sort((a, b) => a.localeCompare(b));
-  return uniqueRoles;
+  const evaluation = await evaluateAccessGate(normalisedEmail, { client });
+  return evaluation.roles;
 }
 
 export type StaffUserRecord = {
@@ -209,108 +157,24 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     return null;
   }
 
-  const supabase = createSupabaseServiceRoleClient();
-
-  type StaffRecordRow = {
-    user_id: string;
-    email: string;
-    display_name: string | null;
-    passkey_enrolled: boolean | null;
-  };
-
-  let staffRecord: StaffRecordRow | null = null;
-
-  if (sessionUser.id) {
-    const { data, error } = await (supabase
-      .from('staff_users') as any)
-      .select('user_id, email, display_name, passkey_enrolled')
-      .eq('user_id', sessionUser.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error loading staff user', error);
-      throw new StaffAccessError('Unable to load staff profile', 503);
-    }
-    staffRecord = (data as StaffRecordRow | null) ?? null;
-  }
-
-  if (!staffRecord && sessionUser.email) {
-    const { data, error } = await (supabase
-      .from('staff_users') as any)
-      .select('user_id, email, display_name, passkey_enrolled')
-      .eq('email', sessionUser.email)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error loading staff user', error);
-      throw new StaffAccessError('Unable to load staff profile', 503);
-    }
-    staffRecord = (data as StaffRecordRow | null) ?? null;
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.debug('staff-lookup', {
-      sessionUser: { id: sessionUser.id, email: sessionUser.email },
-      found: Boolean(staffRecord)
-    });
-  }
-
-  if (!staffRecord) {
+  const email = sessionUser.email?.toLowerCase();
+  if (!email) {
     return null;
   }
 
-  const userIdForQuery = staffRecord.user_id;
+  const supabase = createSupabaseServiceRoleClient();
 
-  const { data: roleMembershipRows, error: roleMembershipError } = await (supabase
-    .from('staff_role_members') as any)
-    .select('role_id, valid_to, granted_via')
-    .eq('user_id', userIdForQuery);
+  const evaluation = await evaluateAccessGate(email, { client: supabase });
 
-  const roleMemberships = roleMembershipRows as Array<{
-    role_id: string;
-    valid_to: string | null;
-    granted_via: string | null;
-  }> | null;
-
-  if (roleMembershipError) {
-    console.error('Error loading staff roles', roleMembershipError);
-    throw new StaffAccessError('Unable to load staff roles', 503);
+  if (!evaluation.allowed || !evaluation.userId) {
+    return null;
   }
 
-  const membershipCheckTime = new Date();
-  const activeMemberships = (roleMemberships ?? []).filter((membership) => {
-    const grantedVia = membership.granted_via ?? 'normal';
-    if (grantedVia !== 'normal' && grantedVia !== 'break_glass') {
-      return false;
-    }
-
-    if (!membership.valid_to) {
-      return true;
-    }
-
-    const validTo = new Date(membership.valid_to);
-    return validTo > membershipCheckTime;
-  });
-
-  const roleIds = activeMemberships.map((membership) => membership.role_id);
-  let roles: string[] = [];
+  const roleIds = evaluation.roleIds;
+  const roles = evaluation.roles;
   const permissionsSet = new Set<PermissionKey>();
 
   if (roleIds.length) {
-    const { data: roleRowsData, error: roleError } = await (supabase
-      .from('staff_roles') as any)
-      .select('id, name')
-      .in('id', roleIds);
-
-    const roleRows = roleRowsData as Array<{ id: string; name: string }> | null;
-
-    if (roleError) {
-      console.error('Error loading staff role names', roleError);
-      throw new StaffAccessError('Unable to resolve role names', 503);
-    }
-
-    roles = roleRows?.map((role) => role.name) ?? [];
-
     const { data: permissionRowsData, error: permissionError } = await (supabase
       .from('staff_role_permissions') as any)
       .select('permission_key, role_id')
@@ -328,16 +192,16 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     });
   }
 
-  const resolvedEmail = (staffRecord.email ?? sessionUser.email ?? 'unknown@torvussecurity.com').toLowerCase();
+  const resolvedEmail = evaluation.email;
 
   return {
-    id: userIdForQuery,
+    id: evaluation.userId,
     email: resolvedEmail,
     displayName:
-      staffRecord.display_name ??
+      evaluation.displayName ??
       (sessionUser.user_metadata?.name as string | undefined) ??
       resolvedEmail,
-    passkeyEnrolled: Boolean(staffRecord.passkey_enrolled),
+    passkeyEnrolled: evaluation.flags.passkey_enrolled,
     roles,
     permissions: Array.from(permissionsSet),
     analyticsId: anonymiseEmail(resolvedEmail)

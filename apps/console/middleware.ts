@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
 import { verifyCfAccessAssertion } from './lib/auth/cfAccess';
 import { buildReportToHeader, generateNonce } from './lib/security';
+import { evaluateAccessGate } from './lib/authz/gate';
 
 type ReadOnlyState = {
   enabled: boolean;
@@ -21,6 +22,7 @@ const EXEMPT_PATH_PREFIXES = ['/api/admin/settings/read-only', '/api/breakglass/
 const READ_ONLY_CACHE_TTL_MS = 10_000;
 const ROLES_CACHE_TTL_MS = 10_000;
 const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/intake/', '/api/csp-report'];
+const SELF_CHECK_PATH = '/api/selfcheck';
 const FEATURE_REQUIRE_STAFF_SESSION = process.env.FEATURE_REQUIRE_STAFF_SESSION === 'true';
 
 type CachedValue<T> = {
@@ -165,43 +167,11 @@ async function loadRolesForEmail(email: string | null): Promise<string[]> {
     return cached.value;
   }
 
-  const supabaseUrl = ensureEnv('SUPABASE_URL');
-  const serviceRoleKey = ensureEnv('SUPABASE_SERVICE_ROLE');
-  const params = new URLSearchParams({
-    select: 'staff_role_members!inner(staff_roles(name))',
-    email: `eq.${email}`
-  });
-  const url = `${supabaseUrl}/rest/v1/staff_users?${params.toString()}`;
-
   try {
-    const response = await fetch(url, {
-      headers: {
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
-        Prefer: 'return=representation'
-      },
-      cache: 'no-store'
-    });
-
-    if (!response.ok) {
-      throw new Error(`unexpected status ${response.status}`);
-    }
-
-    const rows = (await response.json()) as Array<{
-      staff_role_members?: Array<{
-        staff_roles?: { name?: string | null } | null;
-      }> | null;
-    }>;
-
-    const roles = new Set<string>();
-    for (const membership of rows?.[0]?.staff_role_members ?? []) {
-      const name = membership?.staff_roles?.name;
-      if (typeof name === 'string' && name.trim()) {
-        roles.add(name.trim().toLowerCase());
-      }
-    }
-
-    const value = Array.from(roles);
+    const evaluation = await evaluateAccessGate(email);
+    const value = Array.from(
+      new Set(evaluation.roles.map((role) => role.trim().toLowerCase()))
+    );
     cache.set(email, { value, expiresAt: now + ROLES_CACHE_TTL_MS });
     return value;
   } catch (error) {
@@ -258,6 +228,7 @@ export async function middleware(request: NextRequest) {
   let authenticatedEmail: string | null = null;
   let authenticatedMethod: 'supabase' | 'cf-access' | null = null;
   let sessionUserId: string | null = null;
+  let gateResult: Awaited<ReturnType<typeof evaluateAccessGate>> | null = null;
 
   if (protectedApi || requireUiSession) {
     try {
@@ -314,6 +285,17 @@ export async function middleware(request: NextRequest) {
       requestHeaders.set('x-session-user-id', sessionUserId);
       requestHeaders.set('x-session-user-email', authenticatedEmail);
     }
+
+    try {
+      gateResult = await evaluateAccessGate(authenticatedEmail);
+      requestHeaders.set('x-access-allowed', String(gateResult.allowed));
+      if (gateResult.reasons.length) {
+        requestHeaders.set('x-access-deny-reasons', gateResult.reasons.join(';'));
+      }
+    } catch (gateError) {
+      console.error('[middleware][authz] failed to evaluate access gate', gateError);
+      gateResult = null;
+    }
   }
 
   const supabaseCookies = supabaseAuthResponse.cookies.getAll();
@@ -328,6 +310,24 @@ export async function middleware(request: NextRequest) {
     unauthorized.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
     applyResponseHeaders(unauthorized, correlationId);
     return unauthorized;
+  }
+
+  if (protectedApi && pathname !== SELF_CHECK_PATH && gateResult && !gateResult.allowed) {
+    const forbidden = NextResponse.json(
+      {
+        error: 'forbidden',
+        reasons: gateResult.reasons
+      },
+      { status: 403 }
+    );
+    for (const cookie of supabaseCookies) {
+      forbidden.cookies.set(cookie);
+    }
+    forbidden.headers.set('x-read-only', String(readOnly.enabled));
+    forbidden.headers.set('x-read-only-message', readOnly.message);
+    forbidden.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
+    applyResponseHeaders(forbidden, correlationId);
+    return forbidden;
   }
 
   if (readOnly.enabled && isMutating && isApiRoute && protectedApi && !shouldBypass(pathname)) {
@@ -351,7 +351,9 @@ export async function middleware(request: NextRequest) {
       return response;
     }
 
-    const roles = await loadRolesForEmail(authenticatedEmail);
+    const roles = gateResult
+      ? gateResult.roles.map((role) => role.toLowerCase())
+      : await loadRolesForEmail(authenticatedEmail);
     const allowedSet = new Set(readOnly.allow_roles.map((role) => role.toLowerCase()));
     const allowed = roles.some((role) => allowedSet.has(role));
 
@@ -378,7 +380,15 @@ export async function middleware(request: NextRequest) {
 
   let response: NextResponse;
 
-  if (pathname === '/') {
+  if (!isApiRoute && pathname !== SELF_CHECK_PATH && gateResult && !gateResult.allowed && pathname !== '/access-denied') {
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = '/access-denied';
+    response = NextResponse.rewrite(rewriteUrl, {
+      request: {
+        headers: requestHeaders
+      }
+    });
+  } else if (pathname === '/') {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = '/overview';
     response = NextResponse.rewrite(rewriteUrl, {

@@ -44,16 +44,17 @@ describe('getUserRolesByEmail', () => {
     const maybeSingle = vi.fn(async () => ({
       data: {
         staff_role_members: [
-          { staff_roles: { name: 'security_admin' } },
-          { staff_roles: { name: 'investigator' } },
-          { staff_roles: { name: 'security_admin' } }
+          { staff_roles: { name: 'security_admin' }, role_id: '1', valid_to: null },
+          { staff_roles: { name: 'investigator' }, role_id: '2', valid_to: null },
+          { staff_roles: { name: 'security_admin' }, role_id: '1', valid_to: null }
         ]
       },
       error: null
     }));
 
-    const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq }));
+    const isFn = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ is: isFn, maybeSingle }));
+    const select = vi.fn(() => ({ eq, is: isFn, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];
@@ -62,6 +63,7 @@ describe('getUserRolesByEmail', () => {
 
     expect(from).toHaveBeenCalledWith('staff_users');
     expect(eq).toHaveBeenCalledWith('email', 'admin@example.com');
+    expect(isFn).toHaveBeenCalledWith('staff_role_members.valid_to', null);
     expect(roles).toEqual(['investigator', 'security_admin']);
   });
 
@@ -77,8 +79,9 @@ describe('getUserRolesByEmail', () => {
 
   it('returns empty array when record not found', async () => {
     const maybeSingle = vi.fn(async () => ({ data: null, error: { code: 'PGRST116' } }));
-    const eq = vi.fn(() => ({ maybeSingle }));
-    const select = vi.fn(() => ({ eq }));
+    const isFn = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ is: isFn, maybeSingle }));
+    const select = vi.fn(() => ({ eq, is: isFn, maybeSingle }));
     const from = vi.fn(() => ({ select }));
 
     const client = { from } as unknown as Parameters<typeof getUserRolesByEmail>[1];
