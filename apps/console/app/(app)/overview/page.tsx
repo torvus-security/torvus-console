@@ -2,12 +2,11 @@ import Link from 'next/link';
 import { headers } from 'next/headers';
 import { Button, Callout, Flex, Grid, Heading, Text } from '@radix-ui/themes';
 import { requireStaff } from '../../../lib/auth';
-import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
-import { DeniedPanel } from '../../(lib)/denied-panel';
 import { getAnalyticsClient } from '../../../lib/analytics';
 import { countAlerts } from '../../../lib/data/alerts';
 import { countInvestigations } from '../../../lib/data/investigations';
 import { isSupabaseConfigured } from '../../../lib/supabase';
+import { withRequiredRole } from '../../../lib/with-authz';
 import { logAudit } from '../../../server/audit';
 import { PageHeader } from '../../../components/navigation/page-header';
 import { Card } from '../../../components/ui/card';
@@ -134,159 +133,137 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
   );
 }
 
-export default async function OverviewPage() {
-  const authz = await loadAuthz();
-  const headerBag = headers();
-  const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
-  const supabaseConfigured = isSupabaseConfigured();
+export default function OverviewPage() {
+  return withRequiredRole(['security_admin', 'auditor'], async () => {
+    const headerBag = headers();
+    const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
+    const supabaseConfigured = isSupabaseConfigured();
 
-  if (!supabaseConfigured) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Overview" subtitle="Operations & security at a glance" />
-        <Card className="p-5">
-          <Text size="3" color="gray">
-            Supabase configuration is required to display overview metrics.
-          </Text>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!authz.allowed) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Overview" subtitle="Operations & security at a glance" />
-        <DeniedPanel message="Torvus Console access is limited to enrolled and active staff." />
-      </div>
-    );
-  }
-
-  const hasOverviewRole = authorizeRoles(authz, {
-    anyOf: ['security_admin', 'auditor'],
-    context: 'overview'
-  });
-
-  if (!hasOverviewRole) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Overview" subtitle="Operations & security at a glance" />
-        <DeniedPanel message="You need the security administrator or auditor role to view these metrics." />
-      </div>
-    );
-  }
-
-  const staffUser = await requireStaff({ permission: 'metrics.view' });
-  const [stats, activeAlerts, openInvestigations] = await Promise.all([
-    loadOverviewStats(correlationId),
-    countAlerts(),
-    countInvestigations()
-  ]);
-
-  const mergedStats = {
-    ...stats,
-    activeAlerts,
-    openInvestigations
-  };
-
-  const analytics = getAnalyticsClient();
-  analytics.capture('staff_console_viewed', {
-    path: '/overview',
-    user: staffUser.analyticsId,
-    correlation_id: correlationId
-  });
-
-  await logAudit({
-    action: 'page_view',
-    targetType: 'page',
-    targetId: 'overview',
-    resource: 'console.overview',
-    meta: {
-      active_alerts: mergedStats.activeAlerts,
-      open_investigations: mergedStats.openInvestigations
-    }
-  });
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Overview"
-        subtitle="Operations & security at a glance"
-        actions={(
-          <Text size="2" color="gray">
-            Signed in as {staffUser.displayName}
-          </Text>
-        )}
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-        <div className="grid gap-4">
-          <KpiCard label="Active alerts" value={`${mergedStats.activeAlerts}`} />
-          <KpiCard label="Open investigations" value={`${mergedStats.openInvestigations}`} />
-          <KpiCard label="Last incident" value={formatDate(mergedStats.lastIncidentAt)} />
-          <KpiCard
-            label="Release train"
-            value={formatReleaseStatus(mergedStats.releaseTrainStatus)}
-            icon={(
-              <Button asChild variant="surface" size="2">
-                <Link href="/releases">Go to Releases</Link>
-              </Button>
-            )}
-          />
-        </div>
-
-        <div className="grid gap-5">
-          <StatuspageEmbed correlationId={correlationId} />
-          <Card className="grid gap-4 p-5" aria-labelledby="system-heading">
-            <Flex direction="column" gap="3">
-              <Flex direction="column" gap="1">
-                <Heading as="h2" id="system-heading" size="3">
-                  System signals
-                </Heading>
-                <Text size="2" color="gray">
-                  Read only
-                </Text>
-              </Flex>
-              <dl>
-                <Grid columns={{ initial: '1', sm: '2' }} gap="3">
-                  <Flex direction="column" gap="1">
-                    <Text as="span" size="2" color="gray">
-                      Environment
-                    </Text>
-                    <Text as="span" size="3">
-                      {process.env.NODE_ENV}
-                    </Text>
-                  </Flex>
-                  <Flex direction="column" gap="1">
-                    <Text as="span" size="2" color="gray">
-                      Feature flag
-                    </Text>
-                    <Text as="span" size="3">
-                      {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
-                    </Text>
-                  </Flex>
-                  <Flex direction="column" gap="1">
-                    <Text as="span" size="2" color="gray">
-                      Supabase project
-                    </Text>
-                    <Text as="span" size="3">
-                      {process.env.SUPABASE_URL ?? 'unset'}
-                    </Text>
-                  </Flex>
-                  <Flex direction="column" gap="1">
-                    <Text as="span" size="2" color="gray">
-                      Correlation ID
-                    </Text>
-                    <Text as="span" size="3">
-                      {correlationId}
-                    </Text>
-                  </Flex>
-                </Grid>
-              </dl>
-            </Flex>
+    if (!supabaseConfigured) {
+      return (
+        <div className="space-y-6">
+          <PageHeader title="Overview" subtitle="Operations & security at a glance" />
+          <Card className="p-5">
+            <Text size="3" color="gray">
+              Supabase configuration is required to display overview metrics.
+            </Text>
           </Card>
         </div>
+      );
+    }
+
+    const staffUser = await requireStaff({ permission: 'metrics.view' });
+    const [stats, activeAlerts, openInvestigations] = await Promise.all([
+      loadOverviewStats(correlationId),
+      countAlerts(),
+      countInvestigations()
+    ]);
+
+    const mergedStats = {
+      ...stats,
+      activeAlerts,
+      openInvestigations
+    };
+
+    const analytics = getAnalyticsClient();
+    analytics.capture('staff_console_viewed', {
+      path: '/overview',
+      user: staffUser.analyticsId,
+      correlation_id: correlationId
+    });
+
+    await logAudit({
+      action: 'page_view',
+      targetType: 'page',
+      targetId: 'overview',
+      resource: 'console.overview',
+      meta: {
+        active_alerts: mergedStats.activeAlerts,
+        open_investigations: mergedStats.openInvestigations
+      }
+    });
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Overview"
+          subtitle="Operations & security at a glance"
+          actions={(
+            <Text size="2" color="gray">
+              Signed in as {staffUser.displayName}
+            </Text>
+          )}
+        />
+
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+          <div className="grid gap-4">
+            <KpiCard label="Active alerts" value={`${mergedStats.activeAlerts}`} />
+            <KpiCard label="Open investigations" value={`${mergedStats.openInvestigations}`} />
+            <KpiCard label="Last incident" value={formatDate(mergedStats.lastIncidentAt)} />
+            <KpiCard
+              label="Release train"
+              value={formatReleaseStatus(mergedStats.releaseTrainStatus)}
+              icon={(
+                <Button asChild variant="surface" size="2">
+                  <Link href="/releases">Go to Releases</Link>
+                </Button>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-5">
+            <StatuspageEmbed correlationId={correlationId} />
+            <Card className="grid gap-4 p-5" aria-labelledby="system-heading">
+              <Flex direction="column" gap="3">
+                <Flex direction="column" gap="1">
+                  <Heading as="h2" id="system-heading" size="3">
+                    System signals
+                  </Heading>
+                  <Text size="2" color="gray">
+                    Read only
+                  </Text>
+                </Flex>
+                <dl>
+                  <Grid columns={{ initial: '1', sm: '2' }} gap="3">
+                    <Flex direction="column" gap="1">
+                      <Text as="span" size="2" color="gray">
+                        Environment
+                      </Text>
+                      <Text as="span" size="3">
+                        {process.env.NODE_ENV}
+                      </Text>
+                    </Flex>
+                    <Flex direction="column" gap="1">
+                      <Text as="span" size="2" color="gray">
+                        Feature flag
+                      </Text>
+                      <Text as="span" size="3">
+                        {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
+                      </Text>
+                    </Flex>
+                    <Flex direction="column" gap="1">
+                      <Text as="span" size="2" color="gray">
+                        Supabase project
+                      </Text>
+                      <Text as="span" size="3">
+                        {process.env.SUPABASE_URL ?? 'unset'}
+                      </Text>
+                    </Flex>
+                    <Flex direction="column" gap="1">
+                      <Text as="span" size="2" color="gray">
+                        Correlation ID
+                      </Text>
+                      <Text as="span" size="3">
+                        {correlationId}
+                      </Text>
+                    </Flex>
+                  </Grid>
+                </dl>
+              </Flex>
+            </Card>
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  });
 }

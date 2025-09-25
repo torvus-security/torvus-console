@@ -1,15 +1,14 @@
 import Link from 'next/link';
 import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
-import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
+import { Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { PageHeader } from '../../../../components/navigation/page-header';
 import { InviteStaffButton } from '../../../../components/actions/InviteStaffButton';
 import { SkeletonBlock } from '../../../../components/SkeletonBlock';
 import { EmptyState } from '../../../../components/EmptyState';
 import { PeopleTable, type AdminPersonRecord } from '../../../../components/admin/PeopleTable';
 import { getIdentityFromRequestHeaders, getStaffUser } from '../../../../lib/auth';
-import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
-import { DeniedPanel } from '../../../(lib)/denied-panel';
+import { withRequiredRole } from '../../../../lib/with-authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,11 +113,17 @@ function PeopleDirectorySection({
 
   const peopleResult = data.result;
 
-  if (peopleResult.status === 401 || peopleResult.status === 403 || !peopleResult.people) {
+  if (peopleResult.status !== 200 || !peopleResult.people) {
+    console.warn('Unexpected admin people response status', peopleResult.status);
     return (
-      <Box py="9">
-        <DeniedPanel message="You do not have permission to view the staff directory." />
-      </Box>
+      <Callout.Root color="crimson" role="alert">
+        <Flex align="center" justify="between" gap="3" wrap="wrap">
+          <Callout.Text>Unable to load the staff directory. Try again shortly.</Callout.Text>
+          <Button color="crimson" variant="soft" asChild>
+            <Link href="/admin/people">Retry</Link>
+          </Button>
+        </Flex>
+      </Callout.Root>
     );
   }
 
@@ -137,85 +142,61 @@ function PeopleDirectorySection({
   return <PeopleTable people={people} />;
 }
 
-export default async function AdminPeoplePage() {
-  const authz = await loadAuthz();
+export default function AdminPeoplePage() {
+  return withRequiredRole(['security_admin'], async () => {
+    const staffUser = await getStaffUser();
 
-  if (!authz.allowed) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="Torvus Console access is limited to active staff." />
-      </Box>
-    );
-  }
-
-  const isSecurityAdmin = authorizeRoles(authz, {
-    anyOf: ['security_admin'],
-    context: 'admin-people'
-  });
-
-  if (!isSecurityAdmin) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="You need the security administrator role to manage staff." />
-      </Box>
-    );
-  }
-
-  const staffUser = await getStaffUser();
-
-  if (!staffUser) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="Unable to resolve your staff identity." />
-      </Box>
-    );
-  }
-
-  const headerBag = headers();
-  const host = headerBag.get('x-forwarded-host') ?? headerBag.get('host');
-  const protoHeader = headerBag.get('x-forwarded-proto');
-
-  let baseUrl: string;
-  if (host) {
-    const normalisedHost = host.toLowerCase();
-    const defaultProto = normalisedHost.includes('localhost') || normalisedHost.includes('127.0.0.1') ? 'http' : 'https';
-    const protocol = protoHeader ?? defaultProto;
-    baseUrl = `${protocol}://${host}`;
-  } else {
-    baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
-  }
-
-  const identity = getIdentityFromRequestHeaders(headerBag);
-  const headerEmail = identity.email ?? staffUser.email;
-
-  const headerActions = (
-    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-11">
-      <span>
-        Signed in as {staffUser.displayName} ({staffUser.email})
-      </span>
-      <InviteStaffButton />
-    </div>
-  );
-
-  const peopleDataPromise: Promise<PeopleDirectoryData> = (async () => {
-    try {
-      const result = await fetchPeople(baseUrl, headerEmail);
-      return { kind: 'success', result } as const;
-    } catch (error) {
-      return { kind: 'error', error } as const;
+    if (!staffUser) {
+      throw new Error('Staff user unavailable after authorization check');
     }
-  })();
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="People"
-        subtitle="Security administrators enrolled in Torvus Console."
-        actions={headerActions}
-      />
-      <Suspense fallback={<PeopleSkeleton />}>
-        <PeopleDirectorySection dataPromise={peopleDataPromise} />
-      </Suspense>
-    </div>
-  );
+    const headerBag = headers();
+    const host = headerBag.get('x-forwarded-host') ?? headerBag.get('host');
+    const protoHeader = headerBag.get('x-forwarded-proto');
+
+    let baseUrl: string;
+    if (host) {
+      const normalisedHost = host.toLowerCase();
+      const defaultProto =
+        normalisedHost.includes('localhost') || normalisedHost.includes('127.0.0.1') ? 'http' : 'https';
+      const protocol = protoHeader ?? defaultProto;
+      baseUrl = `${protocol}://${host}`;
+    } else {
+      baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
+    }
+
+    const identity = getIdentityFromRequestHeaders(headerBag);
+    const headerEmail = identity.email ?? staffUser.email;
+
+    const headerActions = (
+      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-11">
+        <span>
+          Signed in as {staffUser.displayName} ({staffUser.email})
+        </span>
+        <InviteStaffButton />
+      </div>
+    );
+
+    const peopleDataPromise: Promise<PeopleDirectoryData> = (async () => {
+      try {
+        const result = await fetchPeople(baseUrl, headerEmail);
+        return { kind: 'success', result } as const;
+      } catch (error) {
+        return { kind: 'error', error } as const;
+      }
+    })();
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="People"
+          subtitle="Security administrators enrolled in Torvus Console."
+          actions={headerActions}
+        />
+        <Suspense fallback={<PeopleSkeleton />}>
+          <PeopleDirectorySection dataPromise={peopleDataPromise} />
+        </Suspense>
+      </div>
+    );
+  });
 }

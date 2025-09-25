@@ -1,14 +1,13 @@
 import Link from 'next/link';
 import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
-import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
+import { Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { PageHeader } from '../../../../components/navigation/page-header';
 import { ScrollToSectionButton } from '../../../../components/actions/ScrollToSectionButton';
 import { SkeletonBlock } from '../../../../components/SkeletonBlock';
 import { RoleManager, type RoleMemberRecord } from '../../../../components/admin/RoleManager';
 import { getIdentityFromRequestHeaders, getStaffUser } from '../../../../lib/auth';
-import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
-import { DeniedPanel } from '../../../(lib)/denied-panel';
+import { withRequiredRole } from '../../../../lib/with-authz';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,11 +137,17 @@ function RolesDirectorySection({
 
   const rolesResult = data.result;
 
-  if (rolesResult.status === 401 || rolesResult.status === 403 || !rolesResult.data) {
+  if (rolesResult.status !== 200 || !rolesResult.data) {
+    console.warn('Unexpected admin roles response status', rolesResult.status);
     return (
-      <Box py="9">
-        <DeniedPanel message="You do not have permission to manage roles." />
-      </Box>
+      <Callout.Root color="crimson" role="alert">
+        <Flex align="center" justify="between" gap="3" wrap="wrap">
+          <Callout.Text>Unable to load role assignments. Try again shortly.</Callout.Text>
+          <Button color="crimson" variant="soft" asChild>
+            <Link href="/admin/roles">Retry</Link>
+          </Button>
+        </Flex>
+      </Callout.Root>
     );
   }
 
@@ -151,85 +156,61 @@ function RolesDirectorySection({
   return <RoleManager roles={payload.roles} members={payload.members} />;
 }
 
-export default async function AdminRolesPage() {
-  const authz = await loadAuthz();
+export default function AdminRolesPage() {
+  return withRequiredRole(['security_admin'], async () => {
+    const staffUser = await getStaffUser();
 
-  if (!authz.allowed) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="Torvus Console access is limited to active staff." />
-      </Box>
-    );
-  }
-
-  const isSecurityAdmin = authorizeRoles(authz, {
-    anyOf: ['security_admin'],
-    context: 'admin-roles'
-  });
-
-  if (!isSecurityAdmin) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="You need the security administrator role to manage staff roles." />
-      </Box>
-    );
-  }
-
-  const staffUser = await getStaffUser();
-
-  if (!staffUser) {
-    return (
-      <Box py="9">
-        <DeniedPanel message="Unable to resolve your staff identity." />
-      </Box>
-    );
-  }
-
-  const headerBag = headers();
-  const host = headerBag.get('x-forwarded-host') ?? headerBag.get('host');
-  const protoHeader = headerBag.get('x-forwarded-proto');
-
-  let baseUrl: string;
-  if (host) {
-    const normalisedHost = host.toLowerCase();
-    const defaultProto = normalisedHost.includes('localhost') || normalisedHost.includes('127.0.0.1') ? 'http' : 'https';
-    const protocol = protoHeader ?? defaultProto;
-    baseUrl = `${protocol}://${host}`;
-  } else {
-    baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
-  }
-
-  const identity = getIdentityFromRequestHeaders(headerBag);
-  const headerEmail = identity.email ?? staffUser.email;
-
-  const headerActions = (
-    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-11">
-      <span>
-        Signed in as {staffUser.displayName} ({staffUser.email})
-      </span>
-      <ScrollToSectionButton targetId="assign-role" label="Assign role" />
-    </div>
-  );
-
-  const rolesDataPromise: Promise<RolesDirectoryData> = (async () => {
-    try {
-      const result = await fetchRoles(baseUrl, headerEmail);
-      return { kind: 'success', result } as const;
-    } catch (error) {
-      return { kind: 'error', error } as const;
+    if (!staffUser) {
+      throw new Error('Staff user unavailable after authorization check');
     }
-  })();
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Roles"
-        subtitle="Manage privileged assignments for staff."
-        actions={headerActions}
-      />
-      <Suspense fallback={<RolesSkeleton />}>
-        <RolesDirectorySection dataPromise={rolesDataPromise} />
-      </Suspense>
-    </div>
-  );
+    const headerBag = headers();
+    const host = headerBag.get('x-forwarded-host') ?? headerBag.get('host');
+    const protoHeader = headerBag.get('x-forwarded-proto');
+
+    let baseUrl: string;
+    if (host) {
+      const normalisedHost = host.toLowerCase();
+      const defaultProto =
+        normalisedHost.includes('localhost') || normalisedHost.includes('127.0.0.1') ? 'http' : 'https';
+      const protocol = protoHeader ?? defaultProto;
+      baseUrl = `${protocol}://${host}`;
+    } else {
+      baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
+    }
+
+    const identity = getIdentityFromRequestHeaders(headerBag);
+    const headerEmail = identity.email ?? staffUser.email;
+
+    const headerActions = (
+      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-11">
+        <span>
+          Signed in as {staffUser.displayName} ({staffUser.email})
+        </span>
+        <ScrollToSectionButton targetId="assign-role" label="Assign role" />
+      </div>
+    );
+
+    const rolesDataPromise: Promise<RolesDirectoryData> = (async () => {
+      try {
+        const result = await fetchRoles(baseUrl, headerEmail);
+        return { kind: 'success', result } as const;
+      } catch (error) {
+        return { kind: 'error', error } as const;
+      }
+    })();
+
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Roles"
+          subtitle="Manage privileged assignments for staff."
+          actions={headerActions}
+        />
+        <Suspense fallback={<RolesSkeleton />}>
+          <RolesDirectorySection dataPromise={rolesDataPromise} />
+        </Suspense>
+      </div>
+    );
+  });
 }

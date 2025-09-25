@@ -44,6 +44,25 @@ type StaffUserRow = {
   staff_role_members: StaffRoleMembershipRow[] | null;
 } | null;
 
+export function requireRole(
+  roles: string[],
+  allowed: Array<'security_admin' | 'auditor'>
+): boolean {
+  if (!Array.isArray(roles) || roles.length === 0) {
+    return false;
+  }
+
+  const normalisedRoles = roles
+    .map((role) => role.trim().toLowerCase())
+    .filter((role): role is string => role.length > 0);
+
+  if (normalisedRoles.length === 0) {
+    return false;
+  }
+
+  return allowed.some((role) => normalisedRoles.includes(role.toLowerCase()));
+}
+
 export async function evaluateAccessGate(
   normalisedEmail: string,
   options?: { client?: PostgrestLikeOrSupabase }
@@ -77,7 +96,6 @@ export async function evaluateAccessGate(
   const devStaff = getDevStaffConfig();
   if (devStaff && devStaff.email === email) {
     const roles = [...devStaff.roles];
-    const lowerRoles = roles.map((role) => role.toLowerCase());
     const reasons: string[] = [];
 
     if (!devStaff.enrolled) {
@@ -92,10 +110,9 @@ export async function evaluateAccessGate(
       reasons.push(`staff status is ${devStaff.status}`);
     }
 
-    const hasSecurityAdmin = lowerRoles.includes('security_admin');
-    const hasAuditor = lowerRoles.includes('auditor');
+    const hasRequiredRole = requireRole(roles, ['security_admin', 'auditor']);
 
-    if (!hasSecurityAdmin && !hasAuditor) {
+    if (!hasRequiredRole) {
       reasons.push('missing required role security_admin or auditor');
     }
 
@@ -104,7 +121,10 @@ export async function evaluateAccessGate(
     }
 
     const allowed =
-      devStaff.enrolled && devStaff.verified && devStaff.status === 'active' && (hasSecurityAdmin || hasAuditor);
+      devStaff.enrolled &&
+      devStaff.verified &&
+      devStaff.status === 'active' &&
+      hasRequiredRole;
 
     return {
       email,
@@ -217,11 +237,9 @@ export async function evaluateAccessGate(
     }
   }
 
-  const lowerRoles = uniqueRoles.map((role) => role.toLowerCase());
-  const hasSecurityAdmin = lowerRoles.includes('security_admin');
-  const hasAuditor = lowerRoles.includes('auditor');
+  const hasRequiredRole = requireRole(uniqueRoles, ['security_admin', 'auditor']);
 
-  if (staffRow && !hasSecurityAdmin && !hasAuditor) {
+  if (staffRow && !hasRequiredRole) {
     reasons.push('missing required role security_admin or auditor');
   }
 
@@ -234,7 +252,7 @@ export async function evaluateAccessGate(
     flags.enrolled &&
     flags.verified &&
     flags.status === 'active' &&
-    (hasSecurityAdmin || hasAuditor);
+    hasRequiredRole;
 
   if (!allowed && isDebugLoggingEnabled()) {
     console.debug('[authz] gate deny', {
