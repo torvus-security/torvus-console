@@ -9,11 +9,8 @@ import '../styles/tokens.css';
 import '../styles/globals.css';
 import '../styles/radix.css';
 import { getStaffUser } from '../lib/auth';
-import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
+import { getAnalyticsClient } from '../lib/analytics';
 import { isSupabaseConfigured } from '../lib/supabase';
-import { IdentityPill } from '../components/IdentityPill';
-import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
-import { Sidebar } from '../components/Sidebar';
 import { DeniedPanel } from './(lib)/denied-panel';
 
 export const metadata: Metadata = {
@@ -27,10 +24,7 @@ export const runtime = 'nodejs';
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const headerList = headers();
   const pathname = headerList.get('x-pathname') ?? '/';
-  const nonce = headerList.get('x-csp-nonce') ?? '';
   const correlationId = headerList.get('x-correlation-id') ?? crypto.randomUUID();
-  const readOnlyEnabled = (headerList.get('x-read-only') ?? 'false').toLowerCase() === 'true';
-  const readOnlyMessage = headerList.get('x-read-only-message') ?? 'Maintenance in progress';
   const showThemePanel = process.env.NODE_ENV !== 'production';
 
   const showMinimalShell = pathname.startsWith('/enroll-passkey');
@@ -99,63 +93,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     );
   }
 
-  const navGroups = [...buildNavItems(staffUser.permissions)];
-
-  const hasSecurityAdminRole = staffUser.roles.some((role) => role.toLowerCase() === 'security_admin');
-
-  if (hasSecurityAdminRole) {
-    const adminGroup = navGroups.find((group) => group.group === 'Admin');
-    const adminItems = [
-      { href: '/admin/people', label: 'People' },
-      { href: '/admin/roles', label: 'Roles' },
-      { href: '/admin/integrations', label: 'Integrations' },
-      { href: '/admin/integrations/intake', label: 'Intake Webhooks' },
-      { href: '/admin/settings', label: 'Settings' },
-      { href: '/admin/secrets', label: 'Secrets' },
-      { href: '/admin/secrets/approvals', label: 'Secret Approvals' },
-      { href: '/staff', label: 'Staff' }
-    ];
-
-    if (adminGroup) {
-      adminGroup.items.push(...adminItems);
-    } else {
-      navGroups.push({ group: 'Admin', items: adminItems });
-    }
-  }
-
-  const sidebarGroups = navGroups.map((group) => ({
-    title: group.group,
-    items: group.items
-  }));
-
   return (
     <html lang="en" data-theme="torvus-staff">
       <body data-correlation={correlationId}>
         <Theme appearance="dark" accentColor="violet" grayColor="slate" panelBackground="solid" scaling="100%">
-          <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)]">
-            <aside
-              aria-label="Primary"
-              className="border-r border-slate-200 bg-slate-50/40 dark:border-slate-800 dark:bg-slate-950/20"
-            >
-              <div className="sticky top-0 h-screen overflow-y-auto">
-                <Sidebar groups={sidebarGroups} displayName={staffUser.displayName} email={staffUser.email} />
-              </div>
-            </aside>
-            <main className="min-h-screen overflow-y-auto" data-testid="main-content">
-              <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
-                <div data-nonce={nonce} className="flex justify-end">
-                  <IdentityPill
-                    displayName={staffUser.displayName}
-                    email={staffUser.email}
-                    roles={staffUser.roles}
-                    className="sm:w-auto sm:max-w-none"
-                  />
-                </div>
-                {readOnlyEnabled ? <ReadOnlyBanner message={readOnlyMessage} /> : null}
-                <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
-              </div>
-            </main>
-          </div>
+          <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
           {showThemePanel ? <ThemePanel /> : null}
         </Theme>
       </body>
