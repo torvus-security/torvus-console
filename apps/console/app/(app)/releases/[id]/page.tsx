@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { callReleasesApi } from '../../api-client';
+import { callReleasesApi } from '../api-client';
 import { DecisionControls } from './DecisionControls';
 import { AuthorizationControls } from './AuthorizationControls';
 import { loadAuthz } from '../../../(lib)/authz';
