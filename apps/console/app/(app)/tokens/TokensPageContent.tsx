@@ -6,7 +6,7 @@ import { PageHeader } from '../../../components/navigation/page-header';
 import {
   PersonalAccessTokensPanel,
   type PersonalAccessTokensPanelHandle
-} from '../../profile/PersonalAccessTokensPanel';
+} from '../profile/PersonalAccessTokensPanel';
 
 export type TokensPageContentProps = {
   displayName: string;

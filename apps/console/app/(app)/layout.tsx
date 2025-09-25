@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import type { ReactNode } from 'react';
 import { headers } from 'next/headers';
-import { AppShell } from '../../../components/layout/app-shell';
-import { Sidebar, type SidebarSection } from '../../../components/navigation/sidebar';
-import { IdentityPill } from '../../../components/IdentityPill';
-import { ReadOnlyBanner } from '../../../components/ReadOnlyBanner';
-import { buildNavItems } from '../../../lib/analytics';
-import { getStaffUser } from '../../../lib/auth';
+import { AppShell } from '../../components/layout/app-shell';
+import { Sidebar, type SidebarSection } from '../../components/navigation/sidebar';
+import { IdentityPill } from '../../components/IdentityPill';
+import { ReadOnlyBanner } from '../../components/ReadOnlyBanner';
+import { buildNavItems } from '../../lib/analytics';
+import { getStaffUser } from '../../lib/auth';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const staffUser = await getStaffUser();

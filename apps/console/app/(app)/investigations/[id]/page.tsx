@@ -8,7 +8,7 @@ import {
   type InvestigationDetail
 } from '../../../../lib/data/investigations';
 import { getAllStaffWithRoles } from '../../../../lib/data/staff';
-import InvestigationDetailClient from '../../components/InvestigationDetailClient';
+import InvestigationDetailClient from '../components/InvestigationDetailClient';
 import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
 import { DeniedPanel } from '../../../(lib)/denied-panel';
 
