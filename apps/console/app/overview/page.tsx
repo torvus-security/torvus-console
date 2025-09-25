@@ -10,6 +10,8 @@ import {
   Text
 } from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
+import { loadAuthz, authorizeRoles } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 import { getAnalyticsClient } from '../../lib/analytics';
 import { countAlerts } from '../../lib/data/alerts';
 import { countInvestigations } from '../../lib/data/investigations';
@@ -140,6 +142,7 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
 }
 
 export default async function OverviewPage() {
+  const authz = await loadAuthz();
   const headerBag = headers();
   const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();
   const supabaseConfigured = isSupabaseConfigured();
@@ -153,6 +156,29 @@ export default async function OverviewPage() {
             Supabase configuration is required to display overview metrics.
           </Text>
         </Card>
+      </Flex>
+    );
+  }
+
+  if (!authz.allowed) {
+    return (
+      <Flex direction="column" gap="6">
+        <PageHeader title="Overview" description="Operations & security at a glance" />
+        <DeniedPanel message="Torvus Console access is limited to enrolled and active staff." />
+      </Flex>
+    );
+  }
+
+  const hasOverviewRole = authorizeRoles(authz, {
+    anyOf: ['security_admin', 'auditor'],
+    context: 'overview'
+  });
+
+  if (!hasOverviewRole) {
+    return (
+      <Flex direction="column" gap="6">
+        <PageHeader title="Overview" description="Operations & security at a glance" />
+        <DeniedPanel message="You need the security administrator or auditor role to view these metrics." />
       </Flex>
     );
   }

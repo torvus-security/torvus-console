@@ -1,7 +1,8 @@
 import { cookies, headers } from 'next/headers';
-import { AccessDeniedNotice } from '../../../../components/AccessDeniedNotice';
 import { IntakeIntegrationsManager, type IntakeIntegrationsManagerProps } from '../../../../components/admin/IntakeIntegrationsManager';
 import { getStaffUser } from '../../../../lib/auth';
+import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
+import { DeniedPanel } from '../../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +13,6 @@ type ApiResponse = {
 type FetchResult =
   | { status: 401 | 403; data: null }
   | { status: 200; data: ApiResponse };
-
-function hasSecurityAdminRole(roles: string[]): boolean {
-  return roles.some((role) => role.toLowerCase() === 'security_admin');
-}
 
 async function fetchIntakeData(baseUrl: string, emailHeader: string | null): Promise<FetchResult> {
   const cookieStore = cookies();
@@ -65,10 +62,25 @@ function resolveBaseUrl(): string {
 }
 
 export default async function IntakeIntegrationsPage() {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return <DeniedPanel message="Torvus Console access is limited to active staff." />;
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'admin-integrations-intake'
+  });
+
+  if (!isSecurityAdmin) {
+    return <DeniedPanel message="You need the security administrator role to manage intake integrations." />;
+  }
+
   const staffUser = await getStaffUser();
 
-  if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+  if (!staffUser) {
+    return <DeniedPanel message="Unable to resolve your staff identity." />;
   }
 
   const baseUrl = resolveBaseUrl();
@@ -81,7 +93,7 @@ export default async function IntakeIntegrationsPage() {
   const { status, data } = await fetchIntakeData(baseUrl, headerEmail);
 
   if (status === 401 || status === 403 || !data) {
-    return <AccessDeniedNotice />;
+    return <DeniedPanel message="You do not have permission to manage intake integrations." />;
   }
 
   return (

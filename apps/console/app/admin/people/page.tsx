@@ -2,19 +2,16 @@ import Link from 'next/link';
 import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { PageHeader } from '../../../components/PageHeader';
 import { InviteStaffButton } from '../../../components/actions/InviteStaffButton';
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
 import { EmptyState } from '../../../components/EmptyState';
 import { PeopleTable, type AdminPersonRecord } from '../../../components/admin/PeopleTable';
 import { getStaffUser } from '../../../lib/auth';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
-
-function hasSecurityAdminRole(roles: string[]): boolean {
-  return roles.some((role) => role.toLowerCase() === 'security_admin');
-}
 
 type FetchPeopleResult =
   | { status: 401 | 403; people: null }
@@ -120,7 +117,7 @@ function PeopleDirectorySection({
   if (peopleResult.status === 401 || peopleResult.status === 403 || !peopleResult.people) {
     return (
       <Box py="9">
-        <AccessDeniedNotice />
+        <DeniedPanel message="You do not have permission to view the staff directory." />
       </Box>
     );
   }
@@ -141,12 +138,35 @@ function PeopleDirectorySection({
 }
 
 export default async function AdminPeoplePage() {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
 
-  if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
+  if (!authz.allowed) {
     return (
       <Box py="9">
-        <AccessDeniedNotice />
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </Box>
+    );
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'admin-people'
+  });
+
+  if (!isSecurityAdmin) {
+    return (
+      <Box py="9">
+        <DeniedPanel message="You need the security administrator role to manage staff." />
+      </Box>
+    );
+  }
+
+  const staffUser = await getStaffUser();
+
+  if (!staffUser) {
+    return (
+      <Box py="9">
+        <DeniedPanel message="Unable to resolve your staff identity." />
       </Box>
     );
   }

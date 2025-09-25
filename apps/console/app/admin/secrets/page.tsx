@@ -1,18 +1,24 @@
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { SecretsManager } from '../../../components/admin/SecretsManager';
-import { getStaffUser } from '../../../lib/auth';
 import { loadSecretsSummary, loadSecretRequests } from '../../../server/secrets';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
 
-function hasSecurityAdminRole(roles: string[]): boolean {
-  return roles.some((role) => role.toLowerCase() === 'security_admin');
-}
-
 export default async function SecretsAdminPage() {
-  const staffUser = await getStaffUser();
-  if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return <DeniedPanel message="Torvus Console access is limited to active staff." />;
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'admin-secrets'
+  });
+
+  if (!isSecurityAdmin) {
+    return <DeniedPanel message="You need the security administrator role to manage secrets." />;
   }
 
   const [secrets, requests] = await Promise.all([loadSecretsSummary(), loadSecretRequests(50)]);

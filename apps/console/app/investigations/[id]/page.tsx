@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { getStaffUser } from '../../../lib/auth';
 import {
   getInvestigationById,
@@ -10,6 +9,8 @@ import {
 } from '../../../lib/data/investigations';
 import { getAllStaffWithRoles } from '../../../lib/data/staff';
 import InvestigationDetailClient from '../components/InvestigationDetailClient';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const metadata = {
   title: 'Investigation detail | Torvus Console'
@@ -62,12 +63,35 @@ async function InvestigationDetailLoader({
 }
 
 export default async function InvestigationDetailPage({ params }: PageParams) {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const hasInvestigationsRole = authorizeRoles(authz, {
+    anyOf: ['security_admin', 'auditor', 'investigator'],
+    context: 'investigations-detail'
+  });
+
+  if (!hasInvestigationsRole) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Investigations require investigator, security administrator, or auditor privileges." />
+      </div>
+    );
+  }
+
   const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel message="Unable to resolve your staff identity." />
       </div>
     );
   }
@@ -75,12 +99,13 @@ export default async function InvestigationDetailPage({ params }: PageParams) {
   const hasViewPermission = staffUser.permissions.includes('investigations.view');
 
   if (!hasViewPermission) {
+    console.warn('[authz] investigation-detail missing permission', {
+      email: staffUser.email,
+      permissions: staffUser.permissions
+    });
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
-        <p className="mt-4 max-w-md text-center text-sm text-slate-400">
-          Investigations require investigator, security administrator, or auditor privileges.
-        </p>
+        <DeniedPanel message="Investigations require investigator, security administrator, or auditor privileges." />
       </div>
     );
   }

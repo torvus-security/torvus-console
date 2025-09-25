@@ -1,14 +1,10 @@
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { ReadOnlySettingsForm } from '../../../components/admin/ReadOnlySettingsForm';
-import { getStaffUser } from '../../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
 import { getReadOnly } from '../../../server/settings';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
-
-function hasSecurityAdminRole(roles: string[]): boolean {
-  return roles.some((role) => role.toLowerCase() === 'security_admin');
-}
 
 async function loadRoleNames(): Promise<string[]> {
   const supabase = createSupabaseServiceRoleClient<any>();
@@ -28,10 +24,19 @@ async function loadRoleNames(): Promise<string[]> {
 }
 
 export default async function AdminSettingsPage() {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
 
-  if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
-    return <AccessDeniedNotice />;
+  if (!authz.allowed) {
+    return <DeniedPanel message="Torvus Console access is limited to active staff." />;
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'admin-settings'
+  });
+
+  if (!isSecurityAdmin) {
+    return <DeniedPanel message="You need the security administrator role to manage console settings." />;
   }
 
   const [readOnly, roleNames] = await Promise.all([getReadOnly(), loadRoleNames()]);

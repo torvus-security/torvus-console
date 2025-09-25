@@ -1,12 +1,12 @@
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { PageHeader } from '../../../components/PageHeader';
 import {
   BreakGlassDashboard,
   type RoleOption,
   type StaffDirectoryEntry
 } from '../../../components/admin/BreakGlassDashboard';
-import { getStaffUser } from '../../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { loadAuthz } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,18 +15,22 @@ function normaliseRole(value: string | null | undefined): string {
 }
 
 export default async function BreakGlassAdminPage() {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
 
-  if (!staffUser) {
-    return <AccessDeniedNotice />;
+  if (!authz.allowed || !authz.userId) {
+    return <DeniedPanel message="Torvus Console access is limited to active staff." />;
   }
 
-  const lowerRoles = staffUser.roles.map((role) => role.toLowerCase());
-  const canApprove = lowerRoles.includes('security_admin');
-  const canRequest = canApprove || lowerRoles.includes('investigator');
+  const lowerRoles = new Set(authz.rolesLower);
+  const canApprove = lowerRoles.has('security_admin');
+  const canRequest = canApprove || lowerRoles.has('investigator');
 
   if (!canRequest) {
-    return <AccessDeniedNotice />;
+    console.warn('[authz] break-glass denied', {
+      email: authz.email,
+      assigned: authz.roles
+    });
+    return <DeniedPanel message="You need investigator or security administrator privileges to manage break-glass." />;
   }
 
   const supabase = createSupabaseServiceRoleClient<any>();
@@ -44,12 +48,12 @@ export default async function BreakGlassAdminPage() {
 
   if (staffError) {
     console.error('Failed to load staff directory for break-glass', staffError);
-    return <AccessDeniedNotice />;
+    return <DeniedPanel message="Unable to load staff data. Try again shortly." />;
   }
 
   if (roleError) {
     console.error('Failed to load role catalogue for break-glass', roleError);
-    return <AccessDeniedNotice />;
+    return <DeniedPanel message="Unable to load role catalogue. Try again shortly." />;
   }
 
   const staff: StaffDirectoryEntry[] = ((staffRows as Array<{
@@ -80,7 +84,7 @@ export default async function BreakGlassAdminPage() {
         roles={roles}
         canRequest={canRequest}
         canApprove={canApprove}
-        currentUserId={staffUser.id}
+        currentUserId={authz.userId}
       />
     </div>
   );

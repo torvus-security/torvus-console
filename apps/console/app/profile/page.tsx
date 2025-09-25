@@ -5,10 +5,11 @@ import { Box, Button, Flex, Text } from '@radix-ui/themes';
 import { ProfileForm, type ProfileFormState } from './ProfileForm';
 import { getStaffUser } from '../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../lib/supabase';
-import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
 import { PageHeader } from '../../components/PageHeader';
+import { loadAuthz } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Profile',
@@ -72,12 +73,22 @@ async function saveProfileAction(
 }
 
 export default async function ProfilePage() {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <Box py="9">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </Box>
+    );
+  }
+
   const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
       <Box py="9">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel />
       </Box>
     );
   }
