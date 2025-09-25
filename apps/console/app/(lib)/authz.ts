@@ -2,10 +2,12 @@ import { cache } from 'react';
 import {
   SupabaseConfigurationError,
   createSupabaseServiceRoleClient,
-  isSupabaseConfigured
+  isSupabaseConfigured,
+  isTransientSupabaseError
 } from '../../lib/supabase';
 import { getSessionUser } from '../../lib/auth';
 import { normaliseStaffEmail } from '../../lib/auth/email';
+import { getDevStaffConfig } from '../../lib/devStaff';
 
 export type AuthzResult = {
   email: string | null;
@@ -107,6 +109,25 @@ export const loadAuthz = cache(async function loadAuthz(): Promise<AuthzResult> 
     return emptyResult;
   }
 
+  const devStaff = getDevStaffConfig();
+  if (devStaff && devStaff.email === sessionEmail) {
+    const roles = [...devStaff.roles];
+    const rolesLower = roles.map((role) => role.toLowerCase());
+    const allowed = devStaff.enrolled && devStaff.verified && devStaff.status === 'active';
+    return {
+      email: devStaff.email,
+      userId: devStaff.id,
+      displayName: devStaff.displayName,
+      roles,
+      rolesLower,
+      enrolled: devStaff.enrolled,
+      verified: devStaff.verified,
+      status: devStaff.status,
+      passkeyEnrolled: devStaff.passkeyEnrolled,
+      allowed
+    };
+  }
+
   if (!isSupabaseConfigured()) {
     return emptyResult;
   }
@@ -121,23 +142,34 @@ export const loadAuthz = cache(async function loadAuthz(): Promise<AuthzResult> 
     throw error;
   }
 
-  const { data, error } = (await (supabase.from('staff_users') as any)
-    .select(
-      `user_id,
-       email,
-       display_name,
-       enrolled,
-       verified,
-       status,
-       passkey_enrolled,
-       staff_role_members:staff_role_members!left(
-         valid_to,
-         granted_via,
-         staff_roles:staff_roles ( name )
-       )`
-    )
-    .ilike('email', sessionEmail)
-    .maybeSingle()) as { data: StaffRow; error: { code?: string } | null };
+  let data: StaffRow;
+  let error: { code?: string } | null = null;
+
+  try {
+    ({ data, error } = (await (supabase.from('staff_users') as any)
+      .select(
+        `user_id,
+         email,
+         display_name,
+         enrolled,
+         verified,
+         status,
+         passkey_enrolled,
+         staff_role_members:staff_role_members!left(
+           valid_to,
+           granted_via,
+           staff_roles:staff_roles ( name )
+         )`
+      )
+      .ilike('email', sessionEmail)
+      .maybeSingle()) as { data: StaffRow; error: { code?: string } | null });
+  } catch (unknownError) {
+    if (isTransientSupabaseError(unknownError)) {
+      console.warn('[authz] transient Supabase error while loading authz; returning empty result', unknownError);
+      return emptyResult;
+    }
+    throw unknownError;
+  }
 
   if (error && error.code !== 'PGRST116') {
     console.error('[authz] failed to load staff authz record', error);

@@ -1,6 +1,7 @@
 import { createSupabaseServiceRoleClient } from '../supabase';
 import type { PostgrestLikeOrSupabase } from '../types';
 import { normaliseStaffEmail } from '../auth/email';
+import { getDevStaffConfig } from '../devStaff';
 
 function isDebugLoggingEnabled(): boolean {
   return (process.env.LOG_LEVEL ?? '').toLowerCase() === 'debug';
@@ -71,6 +72,55 @@ export async function evaluateAccessGate(
     }
 
     return result;
+  }
+
+  const devStaff = getDevStaffConfig();
+  if (devStaff && devStaff.email === email) {
+    const roles = [...devStaff.roles];
+    const lowerRoles = roles.map((role) => role.toLowerCase());
+    const reasons: string[] = [];
+
+    if (!devStaff.enrolled) {
+      reasons.push('enrollment incomplete');
+    }
+
+    if (!devStaff.verified) {
+      reasons.push('account not verified');
+    }
+
+    if (devStaff.status !== 'active') {
+      reasons.push(`staff status is ${devStaff.status}`);
+    }
+
+    const hasSecurityAdmin = lowerRoles.includes('security_admin');
+    const hasAuditor = lowerRoles.includes('auditor');
+
+    if (!hasSecurityAdmin && !hasAuditor) {
+      reasons.push('missing required role security_admin or auditor');
+    }
+
+    if (!devStaff.passkeyEnrolled) {
+      reasons.push('passkey enrollment pending (informational)');
+    }
+
+    const allowed =
+      devStaff.enrolled && devStaff.verified && devStaff.status === 'active' && (hasSecurityAdmin || hasAuditor);
+
+    return {
+      email,
+      userId: devStaff.id,
+      displayName: devStaff.displayName,
+      allowed,
+      reasons,
+      flags: {
+        enrolled: devStaff.enrolled,
+        verified: devStaff.verified,
+        status: devStaff.status,
+        passkey_enrolled: devStaff.passkeyEnrolled
+      },
+      roles,
+      roleIds: roles.map((role) => `dev:${role}`)
+    };
   }
 
   const supabase = (options?.client ?? createSupabaseServiceRoleClient()) as PostgrestLikeOrSupabase;

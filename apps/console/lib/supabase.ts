@@ -22,6 +22,35 @@ export function isSupabaseConfigured(): boolean {
   return requiredEnv.every((key) => Boolean(process.env[key]));
 }
 
+export function isTransientSupabaseError(error: unknown): boolean {
+  if (!error) {
+    return false;
+  }
+
+  if (error instanceof TypeError && error.message.includes('fetch failed')) {
+    return true;
+  }
+
+  if (typeof error === 'object' && 'message' in error) {
+    const message = String((error as { message?: unknown }).message ?? '');
+    if (message.includes('fetch failed')) {
+      return true;
+    }
+  }
+
+  if (typeof error === 'object' && error !== null && 'cause' in error) {
+    const cause = (error as { cause?: unknown }).cause;
+    if (cause && typeof cause === 'object' && 'code' in cause) {
+      const code = String((cause as { code?: unknown }).code ?? '');
+      if (code === 'ECONNREFUSED') {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function assertEnv() {
   const missing = requiredEnv.filter((key) => !process.env[key]);
   if (missing.length > 0) {

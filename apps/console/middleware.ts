@@ -39,12 +39,20 @@ const globalScope = globalThis as typeof globalThis & {
   __roleCache?: RoleCache;
 };
 
-function ensureEnv(name: 'SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE' | 'SUPABASE_ANON_KEY'): string {
+function readOptionalEnv(
+  name: 'SUPABASE_URL' | 'SUPABASE_SERVICE_ROLE' | 'SUPABASE_ANON_KEY'
+): string | null {
   const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable ${name}`);
+  if (value && value.trim()) {
+    return value;
   }
-  return value;
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(`[middleware] missing optional environment variable ${name}`);
+    return null;
+  }
+
+  throw new Error(`Missing required environment variable ${name}`);
 }
 
 function normaliseRoles(input: unknown): string[] {
@@ -110,8 +118,14 @@ async function fetchReadOnlyState(): Promise<ReadOnlyState> {
     return cached.value;
   }
 
-  const supabaseUrl = ensureEnv('SUPABASE_URL');
-  const serviceRoleKey = ensureEnv('SUPABASE_SERVICE_ROLE');
+  const supabaseUrl = readOptionalEnv('SUPABASE_URL');
+  const serviceRoleKey = readOptionalEnv('SUPABASE_SERVICE_ROLE');
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.warn('[middleware][read-only] missing Supabase configuration, using defaults');
+    return { ...DEFAULT_READ_ONLY };
+  }
+
   const url = `${supabaseUrl}/rest/v1/app_settings?select=value&key=eq.read_only`;
 
   try {
@@ -232,31 +246,38 @@ export async function middleware(request: NextRequest) {
   let gateResult: Awaited<ReturnType<typeof evaluateAccessGate>> | null = null;
 
   if (protectedApi || requireUiSession) {
-    try {
-      const supabase = createMiddlewareClient({ req: request, res: supabaseAuthResponse }, {
-        supabaseUrl: ensureEnv('SUPABASE_URL'),
-        supabaseKey: ensureEnv('SUPABASE_ANON_KEY')
-      });
+    const supabaseUrl = readOptionalEnv('SUPABASE_URL');
+    const supabaseAnonKey = readOptionalEnv('SUPABASE_ANON_KEY');
 
-      const { data, error } = await supabase.auth.getUser();
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.warn('[middleware][auth] skipping Supabase auth because configuration is missing');
+    } else {
+      try {
+        const supabase = createMiddlewareClient({ req: request, res: supabaseAuthResponse }, {
+          supabaseUrl,
+          supabaseKey: supabaseAnonKey
+        });
 
-      if (error) {
-        console.error('[middleware][auth] failed to resolve Supabase session', error);
-      }
+        const { data, error } = await supabase.auth.getUser();
 
-      const user = data?.user ?? null;
-      if (user) {
-        const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
-        const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION ? Boolean(metadata.is_staff) : true;
-
-        if (isStaffSession) {
-          authenticatedEmail = normaliseStaffEmail(user.email ?? null);
-          authenticatedMethod = 'supabase';
-          sessionUserId = user.id;
+        if (error) {
+          console.error('[middleware][auth] failed to resolve Supabase session', error);
         }
+
+        const user = data?.user ?? null;
+        if (user) {
+          const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+          const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION ? Boolean(metadata.is_staff) : true;
+
+          if (isStaffSession) {
+            authenticatedEmail = normaliseStaffEmail(user.email ?? null);
+            authenticatedMethod = 'supabase';
+            sessionUserId = user.id;
+          }
+        }
+      } catch (error) {
+        console.error('[middleware][auth] unexpected Supabase middleware failure', error);
       }
-    } catch (error) {
-      console.error('[middleware][auth] unexpected Supabase middleware failure', error);
     }
   }
 
