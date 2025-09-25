@@ -164,7 +164,7 @@ export const PersonalAccessTokensPanel = forwardRef<
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/app/api/tokens', { cache: 'no-store' });
+      const response = await fetch('/api/tokens', { cache: 'no-store' });
       if (!response.ok) {
         const message = await response.text();
         throw new Error(message || 'failed to load tokens');
@@ -255,7 +255,7 @@ export const PersonalAccessTokensPanel = forwardRef<
       }
 
       try {
-        const response = await fetch('/app/api/tokens', {
+        const response = await fetch('/api/tokens', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -288,7 +288,7 @@ export const PersonalAccessTokensPanel = forwardRef<
   const handleRevoke = useCallback(async (id: string) => {
     try {
       setError(null);
-      const response = await fetch(`/app/api/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const response = await fetch(`/api/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!response.ok) {
         const message = await response.text();
         throw new Error(message || 'failed to revoke token');
