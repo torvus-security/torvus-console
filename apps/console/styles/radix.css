@@ -1,0 +1,5 @@
+@import "@radix-ui/themes/styles.css";
+:root {
+  /* Bridge Torvus tokens to Radix scales (example defaults; do not override Tailwind). */
+  --default-font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Inter, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}

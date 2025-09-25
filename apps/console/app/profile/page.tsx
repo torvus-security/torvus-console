@@ -10,6 +10,7 @@ import { enforceNotReadOnly, isReadOnlyError } from '../../server/guard';
 import { PageHeader } from '../../components/PageHeader';
 import { loadAuthz } from '../(lib)/authz';
 import { DeniedPanel } from '../(lib)/denied-panel';
+import { Card } from '../../components/ui/card';
 
 export const metadata: Metadata = {
   title: 'Profile',
@@ -111,7 +112,7 @@ export default async function ProfilePage() {
       />
 
       <Flex direction="column" gap="5">
-        <Box className="rounded-3xl border border-slate-700 bg-slate-900/60 p-8 shadow-2xl">
+        <Card className="p-5">
           <ProfileForm
             action={saveProfileAction}
             initialDisplayName={staffUser.displayName}
@@ -119,7 +120,7 @@ export default async function ProfilePage() {
             roles={staffUser.roles}
             passkeyEnrolled={staffUser.passkeyEnrolled}
           />
-        </Box>
+        </Card>
         <PersonalAccessTokensPanel />
       </Flex>
     </div>
