@@ -1,7 +1,12 @@
 "use client";
 
 import { Slot } from '@radix-ui/react-slot';
-import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
+import {
+  forwardRef,
+  type ComponentPropsWithoutRef,
+  type ElementRef,
+  type Ref
+} from 'react';
 import { tv, type VariantProps } from 'tailwind-variants';
 import { cn } from '../../utils/cn';
 
@@ -42,11 +47,19 @@ type ButtonProps = ButtonVariants & {
 
 export const Button = forwardRef<ButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, type = 'button', ...props }, ref) => {
-    const Component = asChild ? Slot : 'button';
+    if (asChild) {
+      return (
+        <Slot
+          ref={ref as Ref<HTMLElement>}
+          className={cn(buttonStyles({ variant, size }), className)}
+          {...props}
+        />
+      );
+    }
 
     return (
-      <Component
-        ref={ref as unknown as ButtonElement}
+      <button
+        ref={ref}
         className={cn(buttonStyles({ variant, size }), className)}
         type={type}
         {...props}
