@@ -8,6 +8,7 @@ import '../design/radix-colors.css';
 import '../styles/tokens.css';
 import '../styles/globals.css';
 import '../styles/radix.css';
+import '../styles/typography.css';
 import { getStaffUser } from '../lib/auth';
 import { getAnalyticsClient } from '../lib/analytics';
 import { isSupabaseConfigured } from '../lib/supabase';
