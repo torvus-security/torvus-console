@@ -10,8 +10,8 @@ import { countInvestigations } from '../../../lib/data/investigations';
 import { isSupabaseConfigured } from '../../../lib/supabase';
 import { logAudit } from '../../../server/audit';
 import { PageHeader } from '../../../components/navigation/page-header';
-import { MetricCard } from '../../../components/MetricCard';
 import { Card } from '../../../components/ui/card';
+import { KpiCard } from '../../../components/ui/kpi-card';
 
 const DEFAULT_STATS = {
   activeAlerts: 0,
@@ -219,85 +219,74 @@ export default async function OverviewPage() {
         )}
       />
 
-      <Grid columns={{ initial: '1', sm: '2', lg: '4' }} gap="4" width="100%">
-        <MetricCard
-          title="Active alerts"
-          description="Alerts open across Torvus platform services."
-          value={`${mergedStats.activeAlerts}`}
-        />
-        <MetricCard
-          title="Open investigations"
-          description="Endpoint triage items assigned to Console operators."
-          value={`${mergedStats.openInvestigations}`}
-        />
-        <MetricCard
-          title="Release train"
-          description="Execution status pending dual-control validation."
-          value={formatReleaseStatus(mergedStats.releaseTrainStatus)}
-          action={(
-            <Button asChild variant="surface">
-              <Link href="/releases">Go to Releases</Link>
-            </Button>
-          )}
-        />
-        <MetricCard
-          title="Last incident"
-          description="UTC timestamp pulled from the audit trail."
-          value={formatDate(mergedStats.lastIncidentAt)}
-        />
-      </Grid>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+        <div className="grid gap-4">
+          <KpiCard label="Active alerts" value={`${mergedStats.activeAlerts}`} />
+          <KpiCard label="Open investigations" value={`${mergedStats.openInvestigations}`} />
+          <KpiCard label="Last incident" value={formatDate(mergedStats.lastIncidentAt)} />
+          <KpiCard
+            label="Release train"
+            value={formatReleaseStatus(mergedStats.releaseTrainStatus)}
+            icon={(
+              <Button asChild variant="surface" size="2">
+                <Link href="/releases">Go to Releases</Link>
+              </Button>
+            )}
+          />
+        </div>
 
-      <Grid columns={{ initial: '1', lg: '2' }} gap="5">
-        <StatuspageEmbed correlationId={correlationId} />
-        <Card className="p-5" aria-labelledby="system-heading">
-          <Flex direction="column" gap="3">
-            <Flex direction="column" gap="1">
-              <Heading as="h2" id="system-heading" size="3">
-                System signals
-              </Heading>
-              <Text size="2" color="gray">
-                Read only
-              </Text>
+        <div className="grid gap-5">
+          <StatuspageEmbed correlationId={correlationId} />
+          <Card className="grid gap-4 p-5" aria-labelledby="system-heading">
+            <Flex direction="column" gap="3">
+              <Flex direction="column" gap="1">
+                <Heading as="h2" id="system-heading" size="3">
+                  System signals
+                </Heading>
+                <Text size="2" color="gray">
+                  Read only
+                </Text>
+              </Flex>
+              <dl>
+                <Grid columns={{ initial: '1', sm: '2' }} gap="3">
+                  <Flex direction="column" gap="1">
+                    <Text as="span" size="2" color="gray">
+                      Environment
+                    </Text>
+                    <Text as="span" size="3">
+                      {process.env.NODE_ENV}
+                    </Text>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Text as="span" size="2" color="gray">
+                      Feature flag
+                    </Text>
+                    <Text as="span" size="3">
+                      {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
+                    </Text>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Text as="span" size="2" color="gray">
+                      Supabase project
+                    </Text>
+                    <Text as="span" size="3">
+                      {process.env.SUPABASE_URL ?? 'unset'}
+                    </Text>
+                  </Flex>
+                  <Flex direction="column" gap="1">
+                    <Text as="span" size="2" color="gray">
+                      Correlation ID
+                    </Text>
+                    <Text as="span" size="3">
+                      {correlationId}
+                    </Text>
+                  </Flex>
+                </Grid>
+              </dl>
             </Flex>
-            <dl>
-              <Grid columns={{ initial: '1', sm: '2' }} gap="3">
-                <Flex direction="column" gap="1">
-                  <Text as="span" size="2" color="gray">
-                    Environment
-                  </Text>
-                  <Text as="span" size="3">
-                    {process.env.NODE_ENV}
-                  </Text>
-                </Flex>
-                <Flex direction="column" gap="1">
-                  <Text as="span" size="2" color="gray">
-                    Feature flag
-                  </Text>
-                  <Text as="span" size="3">
-                    {process.env.TORVUS_FEATURE_ENABLE_RELEASE_EXECUTION === '1' ? 'enabled' : 'disabled'}
-                  </Text>
-                </Flex>
-                <Flex direction="column" gap="1">
-                  <Text as="span" size="2" color="gray">
-                    Supabase project
-                  </Text>
-                  <Text as="span" size="3">
-                    {process.env.SUPABASE_URL ?? 'unset'}
-                  </Text>
-                </Flex>
-                <Flex direction="column" gap="1">
-                  <Text as="span" size="2" color="gray">
-                    Correlation ID
-                  </Text>
-                  <Text as="span" size="3">
-                    {correlationId}
-                  </Text>
-                </Flex>
-              </Grid>
-            </dl>
-          </Flex>
-        </Card>
-      </Grid>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

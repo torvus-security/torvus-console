@@ -1,0 +1,5 @@
+:root { --torvus-leading: 1.35; }
+.kpi { display:flex; flex-direction:column; gap:.25rem }
+.kpi .label { color: var(--gray-11); font-size: 12px; line-height: 1.2; }
+.kpi .value { font-weight: 600; font-size: 28px; line-height: var(--torvus-leading); letter-spacing: -0.01em; }
+.kpi .delta { font-size: 12px; opacity: .75 }
