@@ -196,7 +196,18 @@ async function loadRolesForEmail(email: string | null): Promise<string[]> {
   }
 }
 
-function applyResponseHeaders(response: NextResponse, correlationId: string) {
+function buildContentSecurityPolicy(nonce: string): string {
+  return [
+    "default-src 'self'",
+    "connect-src 'self' https:",
+    "img-src 'self' data: blob: https:",
+    `script-src 'self' 'strict-dynamic' 'nonce-${nonce}' 'unsafe-eval'`,
+    "style-src 'self' 'unsafe-inline'",
+    "frame-ancestors 'none'"
+  ].join('; ');
+}
+
+function applyResponseHeaders(response: NextResponse, correlationId: string, csp: string) {
   response.headers.set('x-correlation-id', correlationId);
   response.headers.set('Report-To', buildReportToHeader());
   response.headers.set(
@@ -207,10 +218,14 @@ function applyResponseHeaders(response: NextResponse, correlationId: string) {
       include_subdomains: false
     })
   );
+  response.headers.set('Content-Security-Policy', csp);
+  response.headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  response.headers.set('X-Frame-Options', 'DENY');
 }
 
 export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
+  const csp = buildContentSecurityPolicy(nonce);
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set('x-torvus-console-roles', '[]');
   const { pathname } = request.nextUrl;
@@ -360,7 +375,7 @@ export async function middleware(request: NextRequest) {
     unauthorized.headers.set('x-read-only', String(readOnly.enabled));
     unauthorized.headers.set('x-read-only-message', readOnly.message);
     unauthorized.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
-    applyResponseHeaders(unauthorized, correlationId);
+    applyResponseHeaders(unauthorized, correlationId, csp);
     return unauthorized;
   }
 
@@ -378,7 +393,7 @@ export async function middleware(request: NextRequest) {
     forbidden.headers.set('x-read-only', String(readOnly.enabled));
     forbidden.headers.set('x-read-only-message', readOnly.message);
     forbidden.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
-    applyResponseHeaders(forbidden, correlationId);
+    applyResponseHeaders(forbidden, correlationId, csp);
     return forbidden;
   }
 
@@ -399,7 +414,7 @@ export async function middleware(request: NextRequest) {
       response.headers.set('x-read-only', 'true');
       response.headers.set('x-read-only-message', readOnly.message);
       response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
-      applyResponseHeaders(response, correlationId);
+      applyResponseHeaders(response, correlationId, csp);
       return response;
     }
 
@@ -425,7 +440,7 @@ export async function middleware(request: NextRequest) {
       response.headers.set('x-read-only', 'true');
       response.headers.set('x-read-only-message', readOnly.message);
       response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
-      applyResponseHeaders(response, correlationId);
+      applyResponseHeaders(response, correlationId, csp);
       return response;
     }
   }
@@ -473,7 +488,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set('x-read-only-message', readOnly.message);
   response.headers.set('x-read-only-allow-roles', readOnly.allow_roles.join(','));
 
-  applyResponseHeaders(response, correlationId);
+  applyResponseHeaders(response, correlationId, csp);
 
   return response;
 }
