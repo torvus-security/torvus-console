@@ -1,4 +1,5 @@
-import { randomUUID, createHash } from 'node:crypto';
+import 'server-only';
+import { createHash, randomUUID as nodeRandomUUID } from 'crypto';
 import type { PermissionKey } from './rbac';
 
 export type AnalyticsEventKey =
@@ -49,7 +50,9 @@ class AnalyticsClient {
         env: process.env.NODE_ENV ?? 'development',
         ...payload
       },
-      uuid: randomUUID()
+      uuid: typeof globalThis.crypto?.randomUUID === 'function'
+        ? globalThis.crypto.randomUUID()
+        : nodeRandomUUID()
     };
 
     this.queue.push({ event, payload: body.properties });
