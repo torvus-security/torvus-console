@@ -1,5 +1,5 @@
 import AuditPage from '../../audit/page';
-import { withRequiredRole } from '../../../lib/with-authz';
+import { withRequiredRole } from '../../../../lib/with-authz';
 
 export { metadata } from '../../audit/page';
 
