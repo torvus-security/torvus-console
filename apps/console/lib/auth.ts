@@ -4,14 +4,17 @@ import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
   SupabaseConfigurationError,
-  isSupabaseConfigured
+  isSupabaseConfigured,
+  isTransientSupabaseError
 } from './supabase';
 import type { PermissionKey } from './rbac';
+import { expandPermissionsForRoles } from './rbac';
 import { anonymiseEmail } from './analytics';
 import { getCfAccessEmail } from './auth/cfAccess';
 import { normaliseStaffEmail } from './auth/email';
 import type { PostgrestLikeOrSupabase } from './types';
 import { evaluateAccessGate } from './authz/gate';
+import { getDevStaffConfig } from './devStaff';
 
 type MaybeRecord = Record<string, unknown>;
 
@@ -181,6 +184,15 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
     return { id: null, email: cfEmail };
   }
 
+  const devStaff = getDevStaffConfig();
+  if (devStaff) {
+    return {
+      id: devStaff.id,
+      email: devStaff.email,
+      user_metadata: { name: devStaff.displayName }
+    };
+  }
+
   return null;
 });
 
@@ -193,6 +205,20 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
   const email = sessionUser.email?.toLowerCase();
   if (!email) {
     return null;
+  }
+
+  const devStaff = getDevStaffConfig();
+  if (devStaff && devStaff.email === email) {
+    const permissions = expandPermissionsForRoles(devStaff.roles);
+    return {
+      id: devStaff.id,
+      email: devStaff.email,
+      displayName: devStaff.displayName,
+      passkeyEnrolled: devStaff.passkeyEnrolled,
+      roles: devStaff.roles,
+      permissions,
+      analyticsId: anonymiseEmail(devStaff.email)
+    };
   }
 
   if (!isSupabaseConfigured()) {
@@ -214,7 +240,29 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     return null;
   }
 
-  const evaluation = await evaluateAccessGate(email, { client: supabase });
+  let evaluation: Awaited<ReturnType<typeof evaluateAccessGate>>;
+
+  try {
+    evaluation = await evaluateAccessGate(email, { client: supabase });
+  } catch (error) {
+    if (isTransientSupabaseError(error)) {
+      console.warn('Unable to evaluate staff access via Supabase; falling back to dev configuration if available.', error);
+      if (devStaff && devStaff.email === email) {
+        const permissions = expandPermissionsForRoles(devStaff.roles);
+        return {
+          id: devStaff.id,
+          email: devStaff.email,
+          displayName: devStaff.displayName,
+          passkeyEnrolled: devStaff.passkeyEnrolled,
+          roles: devStaff.roles,
+          permissions,
+          analyticsId: anonymiseEmail(devStaff.email)
+        };
+      }
+      return null;
+    }
+    throw error;
+  }
 
   if (!evaluation.allowed || !evaluation.userId) {
     return null;
