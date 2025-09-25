@@ -1,3 +1,5 @@
+"use client";
+
 import { Slot } from '@radix-ui/react-slot';
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react';
 import { tv, type VariantProps } from 'tailwind-variants';
