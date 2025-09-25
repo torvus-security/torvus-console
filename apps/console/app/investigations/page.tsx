@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
 import clsx from 'clsx';
-import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PageHeader } from '../../components/PageHeader';
 import { getStaffUser } from '../../lib/auth';
 import { INVESTIGATION_SEVERITIES, INVESTIGATION_STATUSES } from '../../lib/investigations/constants';
 import { listInvestigations, type InvestigationListItem } from '../../lib/data/investigations';
 import NewInvestigationDialog from './components/NewInvestigationDialog';
+import { loadAuthz, authorizeRoles } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Investigations | Torvus Console'
@@ -346,12 +347,35 @@ function FiltersForm({ filters }: { filters: ParsedFilters }) {
 }
 
 export default async function InvestigationsPage({ searchParams }: { searchParams: SearchParams }) {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const hasInvestigationsRole = authorizeRoles(authz, {
+    anyOf: ['security_admin', 'auditor', 'investigator'],
+    context: 'investigations'
+  });
+
+  if (!hasInvestigationsRole) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Investigations require investigator, security administrator, or auditor privileges." />
+      </div>
+    );
+  }
+
   const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel message="Unable to resolve your staff identity." />
       </div>
     );
   }
@@ -359,12 +383,13 @@ export default async function InvestigationsPage({ searchParams }: { searchParam
   const hasViewPermission = staffUser.permissions.includes('investigations.view');
 
   if (!hasViewPermission) {
+    console.warn('[authz] investigations missing permission', {
+      email: staffUser.email,
+      permissions: staffUser.permissions
+    });
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
-        <p className="mt-4 max-w-md text-center text-sm text-slate-400">
-          Investigations require investigator, security administrator, or auditor privileges.
-        </p>
+        <DeniedPanel message="Investigations require investigator, security administrator, or auditor privileges." />
       </div>
     );
   }

@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import clsx from 'clsx';
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { RoleBadge } from '../../../components/RoleBadge';
-import { getStaffUser } from '../../../lib/auth';
 import { getCurrentStaffWithRoles, getStaffByIdWithRoles } from '../../../lib/data/staff';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Staff member | Torvus Console'
@@ -32,15 +32,37 @@ function PasskeyBadge({ enrolled }: { enrolled: boolean }) {
 }
 
 export default async function StaffDetailPage({ params }: StaffDetailPageProps) {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
+
+  if (!authz.allowed || !authz.email) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'staff-detail'
+  });
+
+  if (!isSecurityAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="You need the security administrator role to view staff profiles." />
+      </div>
+    );
+  }
 
   try {
-    const currentStaff = staffUser ? await getCurrentStaffWithRoles(staffUser.email) : null;
+    const currentStaff = await getCurrentStaffWithRoles(authz.email);
 
-    if (!currentStaff || !currentStaff.roles.includes('security_admin')) {
+    if (!currentStaff) {
+      console.warn('[authz] staff-detail missing staff record', { email: authz.email, userId: params.userId });
       return (
         <div className="flex flex-col items-center justify-center py-24">
-          <AccessDeniedNotice variant="card" />
+          <DeniedPanel message="Your staff record is missing or inactive." />
         </div>
       );
     }
@@ -99,7 +121,7 @@ export default async function StaffDetailPage({ params }: StaffDetailPageProps) 
     console.error('Failed to load staff profile', error);
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel message="Unable to load the staff profile. Try again shortly." />
       </div>
     );
   }

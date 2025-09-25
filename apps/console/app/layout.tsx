@@ -12,9 +12,9 @@ import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { IdentityPill } from '../components/IdentityPill';
-import { AccessDeniedNotice } from '../components/AccessDeniedNotice';
 import { ReadOnlyBanner } from '../components/ReadOnlyBanner';
 import { Sidebar } from '../components/Sidebar';
+import { DeniedPanel } from './(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Torvus Console',
@@ -76,7 +76,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             grayColor="slate"
             panelBackground="translucent"
           >
-            <AccessDeniedNotice />
+            <div className="mx-auto max-w-md py-16">
+              <DeniedPanel message="Torvus Console is restricted to enrolled staff." />
+            </div>
           </Theme>
         </body>
       </html>

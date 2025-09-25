@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { Suspense, use } from 'react';
 import { cookies, headers } from 'next/headers';
 import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { PageHeader } from '../../../components/PageHeader';
 import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
 import { RoleManager, type RoleMemberRecord } from '../../../components/admin/RoleManager';
 import { getStaffUser } from '../../../lib/auth';
+import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +30,6 @@ type FetchRolesResult =
 type RolesDirectoryData =
   | { kind: 'success'; result: FetchRolesResult }
   | { kind: 'error'; error: unknown };
-
-function hasSecurityAdminRole(roles: string[]): boolean {
-  return roles.some((role) => role.toLowerCase() === 'security_admin');
-}
 
 async function fetchRoles(baseUrl: string, emailHeader: string | null): Promise<FetchRolesResult> {
   const cookieStore = cookies();
@@ -144,7 +141,7 @@ function RolesDirectorySection({
   if (rolesResult.status === 401 || rolesResult.status === 403 || !rolesResult.data) {
     return (
       <Box py="9">
-        <AccessDeniedNotice />
+        <DeniedPanel message="You do not have permission to manage roles." />
       </Box>
     );
   }
@@ -155,12 +152,35 @@ function RolesDirectorySection({
 }
 
 export default async function AdminRolesPage() {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
 
-  if (!staffUser || !hasSecurityAdminRole(staffUser.roles)) {
+  if (!authz.allowed) {
     return (
       <Box py="9">
-        <AccessDeniedNotice />
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </Box>
+    );
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'admin-roles'
+  });
+
+  if (!isSecurityAdmin) {
+    return (
+      <Box py="9">
+        <DeniedPanel message="You need the security administrator role to manage staff roles." />
+      </Box>
+    );
+  }
+
+  const staffUser = await getStaffUser();
+
+  if (!staffUser) {
+    return (
+      <Box py="9">
+        <DeniedPanel message="Unable to resolve your staff identity." />
       </Box>
     );
   }

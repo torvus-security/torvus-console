@@ -1,9 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { AccessDeniedNotice } from '../../../components/AccessDeniedNotice';
 import { callReleasesApi } from '../api-client';
 import { DecisionControls } from './DecisionControls';
 import { AuthorizationControls } from './AuthorizationControls';
+import { loadAuthz } from '../../(lib)/authz';
+import { DeniedPanel } from '../../(lib)/denied-panel';
 
 type StaffSummary = {
   user_id: string;
@@ -62,6 +63,12 @@ type ReleaseDetailPageProps = {
 
 export default async function ReleaseDetailPage({ params }: ReleaseDetailPageProps) {
   const id = params.id;
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return <DeniedPanel message="Torvus Console access is limited to active staff." />;
+  }
+
   const { status, data } = await callReleasesApi<ReleaseDetailResponse>(`/api/releases/${id}`);
 
   if (status === 404) {
@@ -69,7 +76,7 @@ export default async function ReleaseDetailPage({ params }: ReleaseDetailPagePro
   }
 
   if (status === 401 || status === 403 || !data) {
-    return <AccessDeniedNotice />;
+    return <DeniedPanel message="You do not have permission to view this release request." />;
   }
 
   const { request, approvals, viewer } = data;

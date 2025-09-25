@@ -9,6 +9,8 @@ import { AuditClient } from './AuditClient';
 import { fetchAuditEvents, fetchDistinctActions, fetchDistinctTargetTypes } from '../../server/audit-data';
 import { DEFAULT_RANGE, resolveRange, type RangeKey } from '../../server/audit-filters';
 import { logAudit } from '../../server/audit';
+import { loadAuthz, authorizeRoles } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 export const runtime = 'nodejs';
 
@@ -34,6 +36,29 @@ function pickString(value: string | string[] | undefined): string | null {
 }
 
 export default async function AuditPage({ searchParams }: { searchParams?: SearchParams }) {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <div className="py-12">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const hasAuditRole = authorizeRoles(authz, {
+    anyOf: ['security_admin', 'auditor'],
+    context: 'audit'
+  });
+
+  if (!hasAuditRole) {
+    return (
+      <div className="py-12">
+        <DeniedPanel message="You need the security administrator or auditor role to review the audit trail." />
+      </div>
+    );
+  }
+
   const staffUser = await requireStaff({ permission: 'audit.read' });
   const headerBag = headers();
   const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();

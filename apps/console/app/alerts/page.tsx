@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Suspense } from 'react';
-import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PageHeader } from '../../components/PageHeader';
 import { getStaffUser } from '../../lib/auth';
 import { listAlerts } from '../../lib/data/alerts';
+import { loadAuthz } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Alerts | Torvus Console'
@@ -158,12 +159,22 @@ async function AlertsListSection() {
 }
 
 export default async function AlertsPage() {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
   const staffUser = await getStaffUser();
 
   if (!staffUser) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel />
       </div>
     );
   }

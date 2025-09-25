@@ -5,6 +5,8 @@ import { getAnalyticsClient } from '../../lib/analytics';
 import { PageHeader } from '../../components/PageHeader';
 import { exportAuditCsv, exportAuditJson } from './actions';
 import { FilterSchema, FilterValues, AuditEventRow } from './shared';
+import { loadAuthz, authorizeRoles } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 const PAGE_SIZE = 50;
 const exportAuditCsvAction = exportAuditCsv as unknown as (formData: FormData) => Promise<void>;
@@ -69,6 +71,29 @@ export default async function AuditEventsPage({
 }: {
   searchParams?: Record<string, string | string[]>;
 }) {
+  const authz = await loadAuthz();
+
+  if (!authz.allowed) {
+    return (
+      <div className="py-12">
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const hasAuditRole = authorizeRoles(authz, {
+    anyOf: ['security_admin', 'auditor'],
+    context: 'audit-events'
+  });
+
+  if (!hasAuditRole) {
+    return (
+      <div className="py-12">
+        <DeniedPanel message="You need the security administrator or auditor role to review audit events." />
+      </div>
+    );
+  }
+
   const staffUser = await requireStaff({ permission: 'audit.read' });
   const headerBag = headers();
   const correlationId = headerBag.get('x-correlation-id') ?? crypto.randomUUID();

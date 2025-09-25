@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { AccessDeniedNotice } from '../../components/AccessDeniedNotice';
 import { PageHeader } from '../../components/PageHeader';
 import { StaffTable } from '../../components/StaffTable';
-import { getStaffUser } from '../../lib/auth';
 import { getAllStaffWithRoles, getCurrentStaffWithRoles } from '../../lib/data/staff';
+import { loadAuthz, authorizeRoles } from '../(lib)/authz';
+import { DeniedPanel } from '../(lib)/denied-panel';
 
 export const metadata: Metadata = {
   title: 'Staff directory | Torvus Console'
@@ -19,12 +19,25 @@ type StaffPageProps = {
 };
 
 export default async function StaffPage({ searchParams }: StaffPageProps) {
-  const staffUser = await getStaffUser();
+  const authz = await loadAuthz();
 
-  if (!staffUser) {
+  if (!authz.allowed || !authz.email) {
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel message="Torvus Console access is limited to active staff." />
+      </div>
+    );
+  }
+
+  const isSecurityAdmin = authorizeRoles(authz, {
+    anyOf: ['security_admin'],
+    context: 'staff-directory'
+  });
+
+  if (!isSecurityAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24">
+        <DeniedPanel message="You need the security administrator role to view the staff directory." />
       </div>
     );
   }
@@ -36,12 +49,13 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
   const offset = (page - 1) * PAGE_SIZE;
 
   try {
-    const currentStaff = await getCurrentStaffWithRoles(staffUser.email);
+    const currentStaff = await getCurrentStaffWithRoles(authz.email);
 
-    if (!currentStaff || !currentStaff.roles.includes('security_admin')) {
+    if (!currentStaff) {
+      console.warn('[authz] staff-directory missing staff record', { email: authz.email });
       return (
         <div className="flex flex-col items-center justify-center py-24">
-          <AccessDeniedNotice variant="card" />
+          <DeniedPanel message="Your staff record is missing or inactive." />
         </div>
       );
     }
@@ -58,7 +72,7 @@ export default async function StaffPage({ searchParams }: StaffPageProps) {
     console.error('Failed to load staff directory', error);
     return (
       <div className="flex flex-col items-center justify-center py-24">
-        <AccessDeniedNotice variant="card" />
+        <DeniedPanel message="Unable to load the staff directory. Try again shortly." />
       </div>
     );
   }
