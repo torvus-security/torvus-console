@@ -2,9 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-*,
-*::before,
-*::after {
+:where(:not(.radix-themes)) *,
+:where(:not(.radix-themes)) *::before,
+:where(:not(.radix-themes)) *::after {
+  box-sizing: border-box;
+}
+
+:where(.radix-themes) {
+  font-family: var(--default-font-family);
+}
+
+:where(.radix-themes) *,
+:where(.radix-themes) *::before,
+:where(.radix-themes) *::after {
   box-sizing: border-box;
 }
 

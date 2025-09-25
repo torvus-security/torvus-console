@@ -1,14 +1,6 @@
 import Link from 'next/link';
 import { headers } from 'next/headers';
-import {
-  Button,
-  Callout,
-  Card,
-  Flex,
-  Grid,
-  Heading,
-  Text
-} from '@radix-ui/themes';
+import { Button, Callout, Flex, Grid, Heading, Text } from '@radix-ui/themes';
 import { requireStaff } from '../../lib/auth';
 import { loadAuthz, authorizeRoles } from '../(lib)/authz';
 import { DeniedPanel } from '../(lib)/denied-panel';
@@ -19,6 +11,7 @@ import { isSupabaseConfigured } from '../../lib/supabase';
 import { logAudit } from '../../server/audit';
 import { PageHeader } from '../../components/PageHeader';
 import { MetricCard } from '../../components/MetricCard';
+import { Card } from '../../components/ui/card';
 
 const DEFAULT_STATS = {
   activeAlerts: 0,
@@ -88,7 +81,7 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
 
   if (!embedUrl) {
     return (
-      <Card size="3" aria-labelledby="statuspage-heading">
+      <Card className="p-5" aria-labelledby="statuspage-heading">
         <Flex direction="column" gap="3">
           <Flex direction="column" gap="1">
             <Heading as="h2" id="statuspage-heading" size="3">
@@ -109,7 +102,7 @@ function StatuspageEmbed({ correlationId }: { correlationId: string }) {
   }
 
   return (
-    <Card size="3" aria-labelledby="statuspage-heading">
+    <Card className="p-5" aria-labelledby="statuspage-heading">
       <Flex direction="column" gap="3">
         <Flex direction="column" gap="1">
           <Heading as="h2" id="statuspage-heading" size="3">
@@ -151,7 +144,7 @@ export default async function OverviewPage() {
     return (
       <Flex direction="column" gap="6">
         <PageHeader title="Overview" description="Operations & security at a glance" />
-        <Card size="3">
+        <Card className="p-5">
           <Text size="3" color="gray">
             Supabase configuration is required to display overview metrics.
           </Text>
@@ -256,7 +249,7 @@ export default async function OverviewPage() {
 
       <Grid columns={{ initial: '1', lg: '2' }} gap="5">
         <StatuspageEmbed correlationId={correlationId} />
-        <Card size="3" aria-labelledby="system-heading">
+        <Card className="p-5" aria-labelledby="system-heading">
           <Flex direction="column" gap="3">
             <Flex direction="column" gap="1">
               <Heading as="h2" id="system-heading" size="3">

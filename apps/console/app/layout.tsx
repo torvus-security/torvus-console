@@ -3,11 +3,11 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
-import '@radix-ui/themes/styles.css';
-import { Theme } from '@radix-ui/themes';
+import { Theme, ThemePanel } from '@radix-ui/themes';
 import '../design/radix-colors.css';
 import '../styles/tokens.css';
 import '../styles/globals.css';
+import '../styles/radix.css';
 import { getStaffUser } from '../lib/auth';
 import { buildNavItems, getAnalyticsClient } from '../lib/analytics';
 import { isSupabaseConfigured } from '../lib/supabase';
@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const correlationId = headerList.get('x-correlation-id') ?? crypto.randomUUID();
   const readOnlyEnabled = (headerList.get('x-read-only') ?? 'false').toLowerCase() === 'true';
   const readOnlyMessage = headerList.get('x-read-only-message') ?? 'Maintenance in progress';
+  const showThemePanel = process.env.NODE_ENV !== 'production';
 
   const showMinimalShell = pathname.startsWith('/enroll-passkey');
 
@@ -40,14 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme
-            appearance="dark"
-            radius="large"
-            scaling="100%"
-            accentColor="iris"
-            grayColor="slate"
-            panelBackground="translucent"
-          >
+          <Theme appearance="dark" accentColor="violet" grayColor="slate" panelBackground="solid" scaling="100%">
             <div className="unauthorised" role="alert">
               <h1>Torvus Console</h1>
               <p>Supabase configuration is required before the console can be used.</p>
@@ -56,6 +50,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
                 environment.
               </p>
             </div>
+            {showThemePanel ? <ThemePanel /> : null}
           </Theme>
         </body>
       </html>
@@ -68,17 +63,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme
-            appearance="dark"
-            radius="large"
-            scaling="100%"
-            accentColor="iris"
-            grayColor="slate"
-            panelBackground="translucent"
-          >
+          <Theme appearance="dark" accentColor="violet" grayColor="slate" panelBackground="solid" scaling="100%">
             <div className="mx-auto max-w-md py-16">
               <DeniedPanel message="Torvus Console is restricted to enrolled staff." />
             </div>
+            {showThemePanel ? <ThemePanel /> : null}
           </Theme>
         </body>
       </html>
@@ -101,15 +90,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     return (
       <html lang="en" data-theme="torvus-staff">
         <body data-correlation={correlationId} className="body-minimal">
-          <Theme
-            appearance="dark"
-            radius="large"
-            scaling="100%"
-            accentColor="iris"
-            grayColor="slate"
-            panelBackground="translucent"
-          >
+          <Theme appearance="dark" accentColor="violet" grayColor="slate" panelBackground="solid" scaling="100%">
             <Suspense fallback={<div className="loading" data-testid="loading" />}>{children}</Suspense>
+            {showThemePanel ? <ThemePanel /> : null}
           </Theme>
         </body>
       </html>
@@ -148,14 +131,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="en" data-theme="torvus-staff">
       <body data-correlation={correlationId}>
-        <Theme
-          appearance="dark"
-          radius="large"
-          scaling="100%"
-          accentColor="iris"
-          grayColor="slate"
-          panelBackground="translucent"
-        >
+        <Theme appearance="dark" accentColor="violet" grayColor="slate" panelBackground="solid" scaling="100%">
           <div className="grid min-h-screen grid-cols-[280px_minmax(0,1fr)]">
             <aside
               aria-label="Primary"
@@ -180,6 +156,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
               </div>
             </main>
           </div>
+          {showThemePanel ? <ThemePanel /> : null}
         </Theme>
       </body>
     </html>
