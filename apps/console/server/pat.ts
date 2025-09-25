@@ -1,7 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
 import { createSupabaseServiceRoleClient } from '../lib/supabase';
 
-const TOKEN_PREFIX = 'torv_pat_';
 const TOKEN_BYTE_LENGTH = 32;
 
 export type PersonalAccessTokenRow = {
@@ -41,7 +40,7 @@ export async function createPat(
 ): Promise<{ token: string; row: PersonalAccessTokenRow }> {
   const supabase = createSupabaseServiceRoleClient();
   const tokenBytes = randomBytes(TOKEN_BYTE_LENGTH);
-  const tokenSecret = `${TOKEN_PREFIX}${tokenBytes.toString('base64url')}`;
+  const tokenSecret = tokenBytes.toString('hex');
   const tokenHash = hashToken(tokenSecret);
   const payload: Record<string, unknown> = {
     user_id: userId,

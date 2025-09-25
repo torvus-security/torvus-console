@@ -164,7 +164,7 @@ export const PersonalAccessTokensPanel = forwardRef<
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/self/pats', { cache: 'no-store' });
+      const response = await fetch('/app/api/tokens', { cache: 'no-store' });
       if (!response.ok) {
         const message = await response.text();
         throw new Error(message || 'failed to load tokens');
@@ -255,7 +255,7 @@ export const PersonalAccessTokensPanel = forwardRef<
       }
 
       try {
-        const response = await fetch('/api/self/pats', {
+        const response = await fetch('/app/api/tokens', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -288,7 +288,7 @@ export const PersonalAccessTokensPanel = forwardRef<
   const handleRevoke = useCallback(async (id: string) => {
     try {
       setError(null);
-      const response = await fetch(`/api/self/pats/${encodeURIComponent(id)}/revoke`, { method: 'POST' });
+      const response = await fetch(`/app/api/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!response.ok) {
         const message = await response.text();
         throw new Error(message || 'failed to revoke token');
@@ -438,6 +438,13 @@ export const PersonalAccessTokensPanel = forwardRef<
                   Tokens are scoped to your account. Store the generated secret securely — it cannot be recovered later.
                 </p>
               </div>
+
+              <Callout.Root color="iris" role="note">
+                <Callout.Text>
+                  Tokens inherit your current staff roles at the moment they are created. If your access changes in the future,
+                  generate a new token to pick up updated permissions.
+                </Callout.Text>
+              </Callout.Root>
 
               <label className="flex flex-col gap-2 text-sm text-slate-200">
                 <span className="font-semibold">Name</span>
