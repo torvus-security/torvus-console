@@ -15,7 +15,13 @@ type ResolutionFailure = {
   response: Response;
 };
 
-export async function resolveTokenActor(request: Request): Promise<ResolutionSuccess | ResolutionFailure> {
+export type ResolutionResult = ResolutionSuccess | ResolutionFailure;
+
+export function isResolutionFailure(resolution: ResolutionResult): resolution is ResolutionFailure {
+  return resolution.ok === false;
+}
+
+export async function resolveTokenActor(request: Request): Promise<ResolutionResult> {
   const { email } = getIdentityFromRequestHeaders(request.headers);
 
   if (!email) {

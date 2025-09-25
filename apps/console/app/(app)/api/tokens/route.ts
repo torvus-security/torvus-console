@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPat, listPats } from '../../../../server/pat';
-import { resolveTokenActor } from './_helpers';
+import { isResolutionFailure, resolveTokenActor } from './_helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ function parseExpiry(value: unknown): Date | null | undefined {
 
 export async function GET(request: Request) {
   const resolution = await resolveTokenActor(request);
-  if (!resolution.ok) {
+  if (isResolutionFailure(resolution)) {
     return resolution.response;
   }
 
@@ -61,7 +61,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const resolution = await resolveTokenActor(request);
-  if (!resolution.ok) {
+  if (isResolutionFailure(resolution)) {
     return resolution.response;
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { revokePat } from '../../../../../server/pat';
-import { resolveTokenActor } from '../_helpers';
+import { isResolutionFailure, resolveTokenActor } from '../_helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +12,7 @@ type RouteContext = {
 
 export async function DELETE(request: Request, context: RouteContext) {
   const resolution = await resolveTokenActor(request);
-  if (!resolution.ok) {
+  if (isResolutionFailure(resolution)) {
     return resolution.response;
   }
 
