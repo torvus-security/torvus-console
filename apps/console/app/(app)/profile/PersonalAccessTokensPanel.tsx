@@ -167,7 +167,7 @@ export const PersonalAccessTokensPanel = forwardRef<
       const response = await fetch('/api/tokens', { cache: 'no-store' });
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(message || 'failed to load tokens');
+        throw new Error(message || response.statusText || 'Failed to load tokens');
       }
       const data = (await response.json()) as PersonalAccessToken[];
       if (mountedRef.current) {
@@ -263,7 +263,7 @@ export const PersonalAccessTokensPanel = forwardRef<
 
         if (!response.ok) {
           const message = await response.text();
-          throw new Error(message || 'failed to create token');
+          throw new Error(message || response.statusText || 'Failed to create token');
         }
 
         const result = (await response.json()) as { token: string; row: PersonalAccessToken };
@@ -291,7 +291,7 @@ export const PersonalAccessTokensPanel = forwardRef<
       const response = await fetch(`/api/tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
       if (!response.ok) {
         const message = await response.text();
-        throw new Error(message || 'failed to revoke token');
+        throw new Error(message || response.statusText || 'Failed to revoke token');
       }
       const row = (await response.json()) as PersonalAccessToken;
       setTokens((previous) => previous.map((token) => (token.id === row.id ? row : token)));
