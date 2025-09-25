@@ -6,7 +6,7 @@ import { PageHeader } from '../../../components/PageHeader';
 import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
 import { RoleManager, type RoleMemberRecord } from '../../../components/admin/RoleManager';
-import { getStaffUser } from '../../../lib/auth';
+import { getIdentityFromRequestHeaders, getStaffUser } from '../../../lib/auth';
 import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
 import { DeniedPanel } from '../../(lib)/denied-panel';
 
@@ -43,7 +43,7 @@ async function fetchRoles(baseUrl: string, emailHeader: string | null): Promise<
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('x-authenticated-staff-email', emailHeader);
+    headersMap.set('x-torvus-console-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/roles`, {
@@ -199,10 +199,8 @@ export default async function AdminRolesPage() {
     baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
   }
 
-  const headerEmail =
-    headerBag.get('x-authenticated-staff-email')
-    ?? headerBag.get('x-session-user-email')
-    ?? staffUser.email;
+  const identity = getIdentityFromRequestHeaders(headerBag);
+  const headerEmail = identity.email ?? staffUser.email;
 
   const headerActions = (
     <Flex align="center" gap="3" wrap="wrap">

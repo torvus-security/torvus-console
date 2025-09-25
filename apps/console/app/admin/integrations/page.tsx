@@ -4,7 +4,7 @@ import { Box, Button, Callout, Flex, Text } from '@radix-ui/themes';
 import { PageHeader } from '../../../components/PageHeader';
 import { ScrollToSectionButton } from '../../../components/actions/ScrollToSectionButton';
 import { IntegrationsManager, type IntegrationsManagerProps } from '../../../components/admin/IntegrationsManager';
-import { getStaffUser } from '../../../lib/auth';
+import { getIdentityFromRequestHeaders, getStaffUser } from '../../../lib/auth';
 import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
 import { DeniedPanel } from '../../(lib)/denied-panel';
 
@@ -31,7 +31,7 @@ async function fetchIntegrations(baseUrl: string, emailHeader: string | null): P
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('x-authenticated-staff-email', emailHeader);
+    headersMap.set('x-torvus-console-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/integrations`, {
@@ -99,10 +99,8 @@ export default async function AdminIntegrationsPage() {
     baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
   }
 
-  const headerEmail =
-    headerBag.get('x-authenticated-staff-email')
-    ?? headerBag.get('x-session-user-email')
-    ?? staffUser.email;
+  const identity = getIdentityFromRequestHeaders(headerBag);
+  const headerEmail = identity.email ?? staffUser.email;
 
   let integrationsResult: FetchResult;
 

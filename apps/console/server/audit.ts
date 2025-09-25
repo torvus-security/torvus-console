@@ -2,7 +2,7 @@ import { headers as nextHeaders } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { createSupabaseServiceRoleClient } from '../lib/supabase';
 import {
-  getRequesterEmail,
+  getIdentityFromRequestHeaders,
   getSessionUser,
   getStaffUserByEmail,
   getUserRolesByEmail,
@@ -102,8 +102,8 @@ async function resolveActor(
 
   if (!actorEmail) {
     try {
-      const request = new Request('https://internal.local/audit', { headers });
-      actorEmail = getRequesterEmail(request);
+      const identity = getIdentityFromRequestHeaders(headers);
+      actorEmail = identity.email ?? null;
     } catch (error) {
       console.warn('[audit] failed to resolve requester email', error);
     }

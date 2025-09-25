@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  getRequesterEmail,
+  getIdentityFromRequestHeaders,
   getStaffUserByEmail,
   getUserRolesByEmail,
   type StaffUserRecord
@@ -23,7 +23,7 @@ type ViewerError = {
 export type ViewerResolution = ViewerOk | ViewerError;
 
 export async function resolveViewer(request: Request): Promise<ViewerResolution> {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return { type: 'error', response: new Response('unauthorized', { status: 401 }) };
   }

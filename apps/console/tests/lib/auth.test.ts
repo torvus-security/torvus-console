@@ -1,41 +1,45 @@
 import { describe, expect, it, vi } from 'vitest';
-import { getRequesterEmail, getUserRolesByEmail, getStaffUserByEmail } from '../../lib/auth';
+import { getIdentityFromRequestHeaders, getUserRolesByEmail, getStaffUserByEmail } from '../../lib/auth';
 
-describe('getRequesterEmail', () => {
-  it('prefers authenticated staff header and normalises casing', () => {
-    const request = new Request('https://example.com', {
-      headers: {
-        'x-authenticated-staff-email': ' Admin@Example.com '
-      }
+describe('getIdentityFromRequestHeaders', () => {
+  it('prefers override header and normalises casing', () => {
+    const headerBag = new Headers({
+      'x-torvus-console-email': ' Admin@Example.com ',
+      'cf-access-authenticated-user-email': 'auditor@example.com'
     });
 
-    expect(getRequesterEmail(request)).toBe('admin@example.com');
+    expect(getIdentityFromRequestHeaders(headerBag)).toEqual({
+      email: 'admin@example.com',
+      source: 'torvus'
+    });
   });
 
-  it('falls back to session user header', () => {
-    const request = new Request('https://example.com', {
-      headers: {
-        'x-session-user-email': 'user@example.com'
-      }
+  it('falls back to Cloudflare header when override missing', () => {
+    const headerBag = new Headers({
+      'cf-access-authenticated-user-email': 'auditor@example.com '
     });
 
-    expect(getRequesterEmail(request)).toBe('user@example.com');
+    expect(getIdentityFromRequestHeaders(headerBag)).toEqual({
+      email: 'auditor@example.com',
+      source: 'cloudflare'
+    });
   });
 
-  it('does not trust spoofed Cloudflare email header', () => {
-    const request = new Request('https://example.com', {
-      headers: {
-        'cf-access-authenticated-user-email': 'attacker@example.com'
-      }
+  it('falls back to authenticated user header when Cloudflare absent', () => {
+    const headerBag = new Headers({
+      'x-authenticated-user-email': 'observer@example.com'
     });
 
-    expect(getRequesterEmail(request)).toBeNull();
+    expect(getIdentityFromRequestHeaders(headerBag)).toEqual({
+      email: 'observer@example.com',
+      source: 'cloudflare'
+    });
   });
 
-  it('returns null when no header present', () => {
-    const request = new Request('https://example.com');
+  it('returns anonymous identity when headers missing', () => {
+    const headerBag = new Headers();
 
-    expect(getRequesterEmail(request)).toBeNull();
+    expect(getIdentityFromRequestHeaders(headerBag)).toEqual({ source: 'anonymous' });
   });
 });
 

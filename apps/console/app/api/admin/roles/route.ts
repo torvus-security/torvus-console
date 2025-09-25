@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRequesterEmail, getUserRolesByEmail } from '../../../../lib/auth';
+import { getIdentityFromRequestHeaders, getUserRolesByEmail } from '../../../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,7 @@ type MemberRow = {
 };
 
 export async function GET(request: Request) {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return new Response('unauthorized', { status: 401 });
   }

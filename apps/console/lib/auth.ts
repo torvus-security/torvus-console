@@ -1,5 +1,4 @@
-import { cache } from 'react';
-import type { NextRequest } from 'next/server';
+import { headers } from 'next/headers';
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
@@ -10,7 +9,6 @@ import {
 import type { PermissionKey } from './rbac';
 import { expandPermissionsForRoles } from './rbac';
 import { anonymiseEmail } from './analytics';
-import { getCfAccessEmail } from './auth/cfAccess';
 import { normaliseStaffEmail } from './auth/email';
 import type { PostgrestLikeOrSupabase } from './types';
 import { evaluateAccessGate } from './authz/gate';
@@ -18,26 +16,45 @@ import { getDevStaffConfig } from './devStaff';
 
 type MaybeRecord = Record<string, unknown>;
 
-function getHeaderCaseInsensitive(headers: Headers, name: string): string | null {
-  const direct = headers.get(name);
-  if (direct) {
-    return direct;
-  }
-  const lowerName = name.toLowerCase();
-  for (const [key, value] of headers.entries()) {
-    if (key.toLowerCase() === lowerName) {
-      return value;
+export type RequesterIdentity = {
+  email?: string;
+  source: 'cloudflare' | 'torvus' | 'anonymous';
+};
+
+function resolveIdentityFromHeaders(headerBag: Headers | null | undefined): RequesterIdentity {
+  const checks: Array<{ header: string; source: RequesterIdentity['source'] }> = [
+    { header: 'x-torvus-console-email', source: 'torvus' },
+    { header: 'cf-access-authenticated-user-email', source: 'cloudflare' },
+    { header: 'x-authenticated-user-email', source: 'cloudflare' }
+  ];
+
+  for (const { header, source } of checks) {
+    if (!headerBag) {
+      break;
+    }
+
+    const rawValue = headerBag.get(header);
+    const normalised = normaliseStaffEmail(rawValue);
+
+    if (normalised) {
+      return { email: normalised, source };
     }
   }
-  return null;
+
+  return { source: 'anonymous' };
 }
 
-export function getRequesterEmail(req: Request | NextRequest): string | null {
-  const headers = req.headers;
-  const email =
-    getHeaderCaseInsensitive(headers, 'x-authenticated-staff-email')
-      ?? getHeaderCaseInsensitive(headers, 'x-session-user-email');
-  return normaliseStaffEmail(email);
+export function getIdentityFromRequestHeaders(headerBag?: Headers | null): RequesterIdentity {
+  if (headerBag) {
+    return resolveIdentityFromHeaders(headerBag);
+  }
+
+  try {
+    return resolveIdentityFromHeaders(headers());
+  } catch (error) {
+    console.warn('Unable to access request headers for identity resolution', error);
+    return { source: 'anonymous' };
+  }
 }
 
 export async function getUserRolesByEmail(
@@ -135,7 +152,7 @@ function noteMissingSupabaseConfig(error: unknown): boolean {
   return true;
 }
 
-export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
+export async function getSessionUser(): Promise<SessionUser | null> {
   if (!isSupabaseConfigured()) {
     return null;
   }
@@ -178,12 +195,6 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
 
   // Fallback: trust Cloudflare Access (already authenticated before reaching us)
   const allowCfFallback = !FEATURE_REQUIRE_STAFF_SESSION;
-  const cfEmail = allowCfFallback ? await getCfAccessEmail() : null;
-  if (cfEmail) {
-    // No Supabase id yet; resolve to a staff row by email in getStaffUser()
-    return { id: null, email: cfEmail };
-  }
-
   const devStaff = getDevStaffConfig();
   if (devStaff) {
     return {
@@ -194,9 +205,9 @@ export const getSessionUser = cache(async (): Promise<SessionUser | null> => {
   }
 
   return null;
-});
+}
 
-export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
+export async function getStaffUser(): Promise<StaffUser | null> {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
     return null;
@@ -304,7 +315,7 @@ export const getStaffUser = cache(async (): Promise<StaffUser | null> => {
     permissions: Array.from(permissionsSet),
     analyticsId: anonymiseEmail(resolvedEmail)
   };
-});
+}
 
 export async function requireStaff(options?: { permission?: PermissionKey }): Promise<StaffUser> {
   const sessionUser = await getSessionUser();

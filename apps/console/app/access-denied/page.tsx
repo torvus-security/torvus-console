@@ -11,6 +11,7 @@ export default function AccessDeniedPage() {
     ?.split(';')
     .map((entry) => entry.trim())
     .find((entry) => entry.length > 0);
+  const formattedReason = reason === 'missing_email' ? 'missing email' : reason;
 
-  return <AccessDeniedNotice debugInfo={{ requestId, reason }} />;
+  return <AccessDeniedNotice debugInfo={{ requestId, reason: formattedReason }} />;
 }

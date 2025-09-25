@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
 import {
-  getRequesterEmail,
+  getIdentityFromRequestHeaders,
   getStaffUserByEmail,
   getUserRolesByEmail,
   type StaffUserRecord
@@ -26,7 +26,7 @@ const VIEW_ROLES = new Set(['security_admin', 'investigator', 'auditor']);
 const MANAGE_ROLES = new Set(['security_admin', 'investigator']);
 
 export async function resolveViewer(request: Request): Promise<ViewerResolution> {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return { type: 'error', response: new Response('unauthorized', { status: 401 }) };
   }

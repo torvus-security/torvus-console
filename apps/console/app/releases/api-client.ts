@@ -1,4 +1,5 @@
 import { cookies, headers } from 'next/headers';
+import { getIdentityFromRequestHeaders } from '../../lib/auth';
 
 type ApiCallOptions = Omit<RequestInit, 'headers'> & { headers?: HeadersInit };
 
@@ -21,9 +22,8 @@ function resolveBaseUrl(): { baseUrl: string; emailHeader: string | null; cookie
     baseUrl = `${protocol}://${host}`;
   }
 
-  const headerEmail =
-    headerBag.get('x-authenticated-staff-email')
-    ?? headerBag.get('x-session-user-email');
+  const identity = getIdentityFromRequestHeaders(headerBag);
+  const headerEmail = identity.email ?? null;
 
   const cookieStore = cookies();
   const cookieHeader = cookieStore
@@ -42,7 +42,7 @@ export async function callReleasesApi<T>(path: string, options: ApiCallOptions =
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('x-authenticated-staff-email', emailHeader);
+    headersMap.set('x-torvus-console-email', emailHeader);
   }
   headersMap.set('accept', 'application/json');
 

@@ -12,13 +12,14 @@ export type AccessDeniedNoticeProps = {
 export function AccessDeniedNotice({ variant = 'full', className, debugInfo }: AccessDeniedNoticeProps) {
   const isDebugEnv = process.env.NODE_ENV !== 'production';
   const debugLines: string[] = [];
+  const reasonMessage = debugInfo?.reason?.trim() ? debugInfo.reason.trim() : null;
 
   if (isDebugEnv && debugInfo) {
     if (debugInfo.requestId) {
       debugLines.push(`request ${debugInfo.requestId}`);
     }
-    if (debugInfo.reason) {
-      debugLines.push(debugInfo.reason);
+    if (reasonMessage) {
+      debugLines.push(reasonMessage);
     }
   }
 
@@ -39,6 +40,11 @@ export function AccessDeniedNotice({ variant = 'full', className, debugInfo }: A
           <Text size="2" color="gray" align="center">
             Torvus Console is restricted to enrolled staff. Contact Security Operations.
           </Text>
+          {reasonMessage ? (
+            <Text size="2" color="gray" align="center" data-testid="access-denied-reason">
+              Reason: {reasonMessage}
+            </Text>
+          ) : null}
           {debugMessage ? (
             <Text size="1" color="gray" align="center" data-testid="access-denied-debug">
               {debugMessage}
@@ -53,6 +59,11 @@ export function AccessDeniedNotice({ variant = 'full', className, debugInfo }: A
     <main className={clsx('unauthorised', className)}>
       <h1>Access denied</h1>
       <p>Torvus Console is restricted to enrolled staff. Contact Security Operations.</p>
+      {reasonMessage ? (
+        <p className="access-denied-reason" data-testid="access-denied-reason">
+          Reason: {reasonMessage}
+        </p>
+      ) : null}
       {debugMessage ? (
         <p className="access-denied-debug" data-testid="access-denied-debug">
           {debugMessage}

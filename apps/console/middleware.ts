@@ -5,6 +5,7 @@ import { verifyCfAccessAssertion } from './lib/auth/cfAccess';
 import { normaliseStaffEmail } from './lib/auth/email';
 import { buildReportToHeader, generateNonce } from './lib/security';
 import { evaluateAccessGate } from './lib/authz/gate';
+import { getIdentityFromRequestHeaders } from './lib/auth';
 
 type ReadOnlyState = {
   enabled: boolean;
@@ -211,6 +212,7 @@ function applyResponseHeaders(response: NextResponse, correlationId: string) {
 export async function middleware(request: NextRequest) {
   const nonce = generateNonce();
   const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-torvus-console-roles', '[]');
   const { pathname } = request.nextUrl;
   const effectivePathname = pathname === '/' ? '/overview' : pathname;
 
@@ -240,9 +242,11 @@ export async function middleware(request: NextRequest) {
 
   const supabaseAuthResponse = NextResponse.next();
 
-  let authenticatedEmail: string | null = null;
-  let authenticatedMethod: 'supabase' | 'cf-access' | null = null;
+  const identity = getIdentityFromRequestHeaders(request.headers);
+  let authenticatedEmail: string | null = identity.email ?? null;
+  let authenticatedSource: ReturnType<typeof getIdentityFromRequestHeaders>['source'] = identity.source;
   let sessionUserId: string | null = null;
+  let supabaseEmail: string | null = null;
   let gateResult: Awaited<ReturnType<typeof evaluateAccessGate>> | null = null;
 
   if (protectedApi || requireUiSession) {
@@ -270,8 +274,11 @@ export async function middleware(request: NextRequest) {
           const isStaffSession = FEATURE_REQUIRE_STAFF_SESSION ? Boolean(metadata.is_staff) : true;
 
           if (isStaffSession) {
-            authenticatedEmail = normaliseStaffEmail(user.email ?? null);
-            authenticatedMethod = 'supabase';
+            supabaseEmail = normaliseStaffEmail(user.email ?? null);
+            if (!authenticatedEmail && supabaseEmail) {
+              authenticatedEmail = supabaseEmail;
+              authenticatedSource = 'torvus';
+            }
             sessionUserId = user.id;
           }
         }
@@ -285,7 +292,7 @@ export async function middleware(request: NextRequest) {
     const headerEmail = readCfAuthenticatedEmailHeader(request);
     if (headerEmail) {
       authenticatedEmail = headerEmail;
-      authenticatedMethod = 'cf-access';
+      authenticatedSource = 'cloudflare';
     } else {
       const assertion = readAccessAssertion(request);
       if (assertion) {
@@ -299,7 +306,7 @@ export async function middleware(request: NextRequest) {
 
           if (claimEmail) {
             authenticatedEmail = claimEmail;
-            authenticatedMethod = 'cf-access';
+            authenticatedSource = 'cloudflare';
           }
         }
       }
@@ -307,23 +314,40 @@ export async function middleware(request: NextRequest) {
   }
 
   if (authenticatedEmail) {
+    requestHeaders.set('x-torvus-console-email', authenticatedEmail);
     requestHeaders.set('x-authenticated-staff-email', authenticatedEmail);
-    requestHeaders.set('x-authenticated-staff-method', authenticatedMethod ?? 'unknown');
-    if (sessionUserId) {
-      requestHeaders.set('x-session-user-id', sessionUserId);
-      requestHeaders.set('x-session-user-email', authenticatedEmail);
-    }
+  } else {
+    requestHeaders.delete('x-torvus-console-email');
+    requestHeaders.delete('x-authenticated-staff-email');
+  }
 
+  requestHeaders.set('x-authenticated-staff-method', authenticatedSource);
+
+  if (sessionUserId) {
+    requestHeaders.set('x-session-user-id', sessionUserId);
+    const sessionEmail = supabaseEmail ?? authenticatedEmail;
+    if (sessionEmail) {
+      requestHeaders.set('x-session-user-email', sessionEmail);
+    }
+  }
+
+  if (authenticatedEmail) {
     try {
       gateResult = await evaluateAccessGate(authenticatedEmail);
       requestHeaders.set('x-access-allowed', String(gateResult.allowed));
+      requestHeaders.set('x-torvus-console-roles', JSON.stringify(gateResult.roles));
       if (gateResult.reasons.length) {
         requestHeaders.set('x-access-deny-reasons', gateResult.reasons.join(';'));
+      } else {
+        requestHeaders.delete('x-access-deny-reasons');
       }
     } catch (gateError) {
       console.error('[middleware][authz] failed to evaluate access gate', gateError);
       gateResult = null;
+      requestHeaders.set('x-access-allowed', 'false');
     }
+  } else {
+    requestHeaders.set('x-access-allowed', 'false');
   }
 
   const supabaseCookies = supabaseAuthResponse.cookies.getAll();
@@ -408,7 +432,16 @@ export async function middleware(request: NextRequest) {
 
   let response: NextResponse;
 
-  if (!isApiRoute && pathname !== SELF_CHECK_PATH && gateResult && !gateResult.allowed && pathname !== '/access-denied') {
+  if (!isApiRoute && pathname !== SELF_CHECK_PATH && !authenticatedEmail && pathname !== '/access-denied') {
+    requestHeaders.set('x-access-deny-reasons', 'missing_email');
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = '/access-denied';
+    response = NextResponse.rewrite(rewriteUrl, {
+      request: {
+        headers: requestHeaders
+      }
+    });
+  } else if (!isApiRoute && pathname !== SELF_CHECK_PATH && gateResult && !gateResult.allowed && pathname !== '/access-denied') {
     const rewriteUrl = request.nextUrl.clone();
     rewriteUrl.pathname = '/access-denied';
     response = NextResponse.rewrite(rewriteUrl, {
