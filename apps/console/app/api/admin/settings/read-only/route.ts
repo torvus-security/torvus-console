@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRequesterEmail, getUserRolesByEmail, getStaffUserByEmail } from '../../../../../lib/auth';
+import { getIdentityFromRequestHeaders, getUserRolesByEmail, getStaffUserByEmail } from '../../../../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
 import { getReadOnly, setReadOnly } from '../../../../../server/settings';
 
@@ -10,7 +10,7 @@ function hasSecurityAdminRole(roles: string[]): boolean {
 }
 
 export async function GET(request: Request) {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return new Response('unauthorized', { status: 401 });
   }
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return new Response('unauthorized', { status: 401 });
   }

@@ -1,4 +1,4 @@
-import { getRequesterEmail } from './auth';
+import { getIdentityFromRequestHeaders } from './auth';
 import { createSupabaseServiceRoleClient } from './supabase';
 import { evaluateAccessGate } from './authz/gate';
 
@@ -10,7 +10,7 @@ export type SelfProfile = {
 };
 
 export async function getSelf(request: Request): Promise<SelfProfile | null> {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return null;
   }

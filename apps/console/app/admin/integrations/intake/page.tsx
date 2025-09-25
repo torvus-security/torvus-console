@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import { IntakeIntegrationsManager, type IntakeIntegrationsManagerProps } from '../../../../components/admin/IntakeIntegrationsManager';
-import { getStaffUser } from '../../../../lib/auth';
+import { getIdentityFromRequestHeaders, getStaffUser } from '../../../../lib/auth';
 import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
 import { DeniedPanel } from '../../../(lib)/denied-panel';
 
@@ -26,7 +26,7 @@ async function fetchIntakeData(baseUrl: string, emailHeader: string | null): Pro
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('x-authenticated-staff-email', emailHeader);
+    headersMap.set('x-torvus-console-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/integrations/intake`, {
@@ -85,10 +85,8 @@ export default async function IntakeIntegrationsPage() {
 
   const baseUrl = resolveBaseUrl();
   const headerBag = headers();
-  const headerEmail =
-    headerBag.get('x-authenticated-staff-email')
-    ?? headerBag.get('x-session-user-email')
-    ?? staffUser.email;
+  const identity = getIdentityFromRequestHeaders(headerBag);
+  const headerEmail = identity.email ?? staffUser.email;
 
   const { status, data } = await fetchIntakeData(baseUrl, headerEmail);
 

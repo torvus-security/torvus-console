@@ -1,18 +1,53 @@
 import { NextResponse } from 'next/server';
-import { getSelf } from '../../../lib/self';
+import { getIdentityFromRequestHeaders } from '../../../lib/auth';
+import { evaluateAccessGate } from '../../../lib/authz/gate';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  try {
-    const profile = await getSelf(request);
-    if (!profile) {
-      return new Response('unauthorized', { status: 401 });
-    }
+  const identity = getIdentityFromRequestHeaders(request.headers);
 
-    return NextResponse.json(profile);
+  if (!identity.email) {
+    return NextResponse.json(
+      {
+        email: null,
+        roles: [],
+        flags: null,
+        source: identity.source
+      },
+      {
+        status: 401,
+        headers: { 'cache-control': 'no-store' }
+      }
+    );
+  }
+
+  try {
+    const evaluation = await evaluateAccessGate(identity.email);
+    return NextResponse.json(
+      {
+        email: evaluation.email,
+        roles: evaluation.roles,
+        flags: evaluation.flags,
+        source: identity.source
+      },
+      {
+        headers: { 'cache-control': 'no-store' }
+      }
+    );
   } catch (error) {
-    console.error('failed to load self profile', error);
-    return new Response('failed to resolve profile', { status: 500 });
+    console.error('failed to evaluate self profile', error);
+    return NextResponse.json(
+      {
+        email: identity.email,
+        roles: [],
+        flags: null,
+        source: identity.source
+      },
+      {
+        status: 500,
+        headers: { 'cache-control': 'no-store' }
+      }
+    );
   }
 }

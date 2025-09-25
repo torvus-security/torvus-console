@@ -7,7 +7,7 @@ import { InviteStaffButton } from '../../../components/actions/InviteStaffButton
 import { SkeletonBlock } from '../../../components/SkeletonBlock';
 import { EmptyState } from '../../../components/EmptyState';
 import { PeopleTable, type AdminPersonRecord } from '../../../components/admin/PeopleTable';
-import { getStaffUser } from '../../../lib/auth';
+import { getIdentityFromRequestHeaders, getStaffUser } from '../../../lib/auth';
 import { loadAuthz, authorizeRoles } from '../../(lib)/authz';
 import { DeniedPanel } from '../../(lib)/denied-panel';
 
@@ -33,7 +33,7 @@ async function fetchPeople(baseUrl: string, emailHeader: string | null): Promise
     headersMap.set('cookie', cookieHeader);
   }
   if (emailHeader) {
-    headersMap.set('x-authenticated-staff-email', emailHeader);
+    headersMap.set('x-torvus-console-email', emailHeader);
   }
 
   const response = await fetch(`${baseUrl}/api/admin/people`, {
@@ -185,10 +185,8 @@ export default async function AdminPeoplePage() {
     baseUrl = process.env.NEXT_PUBLIC_CONSOLE_URL ?? 'http://localhost:3000';
   }
 
-  const headerEmail =
-    headerBag.get('x-authenticated-staff-email')
-    ?? headerBag.get('x-session-user-email')
-    ?? staffUser.email;
+  const identity = getIdentityFromRequestHeaders(headerBag);
+  const headerEmail = identity.email ?? staffUser.email;
 
   const headerActions = (
     <Flex align="center" gap="3" wrap="wrap">

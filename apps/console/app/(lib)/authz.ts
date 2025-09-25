@@ -1,4 +1,3 @@
-import { cache } from 'react';
 import {
   SupabaseConfigurationError,
   createSupabaseServiceRoleClient,
@@ -88,7 +87,7 @@ function noteMissingSupabaseConfig(error: unknown): boolean {
   return true;
 }
 
-export const loadAuthz = cache(async function loadAuthz(): Promise<AuthzResult> {
+export async function loadAuthz(): Promise<AuthzResult> {
   const sessionUser = await getSessionUser();
   const sessionEmail = normaliseStaffEmail(sessionUser?.email ?? null);
 
@@ -202,7 +201,7 @@ export const loadAuthz = cache(async function loadAuthz(): Promise<AuthzResult> 
     passkeyEnrolled,
     allowed
   };
-});
+}
 
 type RoleCheck = {
   anyOf?: string[];

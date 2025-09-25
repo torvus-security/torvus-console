@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { getRequesterEmail, getUserRolesByEmail } from '../../../../lib/auth';
+import { getIdentityFromRequestHeaders, getUserRolesByEmail } from '../../../../lib/auth';
 import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
 
 export type AdminContext = {
@@ -11,7 +11,7 @@ export type AdminContext = {
 export async function requireSecurityAdmin(
   request: Request
 ): Promise<{ ok: true; context: AdminContext } | { ok: false; response: Response }> {
-  const email = getRequesterEmail(request);
+  const { email } = getIdentityFromRequestHeaders(request.headers);
   if (!email) {
     return { ok: false, response: new Response('unauthorized', { status: 401 }) };
   }
