@@ -204,6 +204,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     };
   }
 
+  if (allowCfFallback) {
+    const identity = getIdentityFromRequestHeaders();
+    if (identity.email) {
+      return {
+        id: null,
+        email: identity.email,
+        user_metadata: { identitySource: identity.source }
+      };
+    }
+  }
+
   return null;
 }
 
