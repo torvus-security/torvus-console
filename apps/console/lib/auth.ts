@@ -347,6 +347,50 @@ export async function requireStaff(options?: { permission?: PermissionKey }): Pr
   return staffUser;
 }
 
+export async function isAdminSession(): Promise<boolean> {
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase configuration missing; unable to verify administrator session.');
+    return false;
+  }
+
+  let supabase: ReturnType<typeof createSupabaseServerClient> | null = null;
+
+  try {
+    supabase = createSupabaseServerClient();
+  } catch (error) {
+    if (noteMissingSupabaseConfig(error)) {
+      return false;
+    }
+    throw error;
+  }
+
+  if (!supabase) {
+    return false;
+  }
+
+  const { data, error } = await supabase.rpc('is_admin');
+
+  if (error) {
+    console.error('Failed to verify administrator session', error);
+    throw new StaffAccessError('Unable to verify administrator privileges', 503);
+  }
+
+  return data === true;
+}
+
+export async function ensureAdminSession(): Promise<void> {
+  const isAdmin = await isAdminSession();
+  if (!isAdmin) {
+    throw new StaffAccessError('Administrator privileges required', 403);
+  }
+}
+
+export async function requireAdminStaff(options?: { permission?: PermissionKey }): Promise<StaffUser> {
+  const staffUser = await requireStaff(options);
+  await ensureAdminSession();
+  return staffUser;
+}
+
 export async function ensurePasskeyEnrolled(): Promise<boolean> {
   const staffUser = await getStaffUser();
   return Boolean(staffUser?.passkeyEnrolled);

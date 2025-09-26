@@ -32,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/security/events', label: 'Security events', permission: 'audit.read', group: 'Security' },
   { href: '/security/policies', label: 'Policies', group: 'Security' },
   { href: '/admin/break-glass', label: 'Break Glass', permission: 'investigations.manage', group: 'Security' },
+  { href: '/users/search', label: 'Users', permission: 'staff.manage', group: 'Admin' },
   { href: '/account/profile', label: 'Profile', group: 'Account' }
 ];
 
