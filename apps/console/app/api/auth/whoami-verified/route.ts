@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getVerifiedUser } from "@/lib/auth/currentUser";
+import { getVerifiedUser } from "../../../../lib/auth/currentUser";
 
 export async function GET() {
   try {
