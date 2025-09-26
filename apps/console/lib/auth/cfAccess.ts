@@ -1,141 +1,69 @@
-import { cookies, headers } from 'next/headers';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { normaliseStaffEmail } from './email';
+import { createRemoteJWKSet, jwtVerify, JWTPayload } from "jose";
 
-type MaybeRecord = Record<string, unknown>;
+const TEAM_DOMAIN = process.env.CF_ACCESS_TEAM_DOMAIN; // e.g. torvussecurity.cloudflareaccess.com
+const EXPECTED_AUD = process.env.CF_ACCESS_AUD; // Access app AUD tag
 
-export type CfAccessClaims = {
-  email?: string;
-} & MaybeRecord;
-
-function normaliseAudience(raw: string | null | undefined): string | null {
-  if (!raw) {
-    return null;
-  }
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : null;
+if (!TEAM_DOMAIN) {
+  throw new Error("CF_ACCESS_TEAM_DOMAIN is not set");
+}
+if (!EXPECTED_AUD) {
+  throw new Error("CF_ACCESS_AUD is not set");
 }
 
-function getIssuer(): string | null {
-  const issuer = process.env.CF_ACCESS_JWT_ISS;
-  if (!issuer) {
-    return null;
+// Cloudflare publishes JWKS at this well-known path
+const JWKS = createRemoteJWKSet(new URL(`https://${TEAM_DOMAIN}/cdn-cgi/access/certs`));
+
+export type VerifiedIdentity = {
+  email: string;
+  sub: string;
+  exp?: number;
+  iat?: number;
+  iss: string;
+  aud: string | string[];
+  raw: JWTPayload;
+};
+
+export async function verifyAccessJwt(jwt: string): Promise<VerifiedIdentity> {
+  // Verify signature and default claims first
+  const { payload } = await jwtVerify(jwt, JWKS, {
+    // issuer looks like: https://${TEAM_DOMAIN}/
+    issuer: `https://${TEAM_DOMAIN}/`,
+    audience: EXPECTED_AUD,
+  });
+
+  const email =
+    (payload as any).email ||
+    (payload as any).identity ||
+    (payload as any)["cf-access-verified-email"] ||
+    (payload.sub && payload.sub.includes("@") ? payload.sub : undefined);
+
+  if (!email) {
+    throw new Error("Verified JWT missing email claim");
   }
 
-  const trimmed = issuer.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  try {
-    const issuerUrl = new URL(trimmed);
-    issuerUrl.pathname = issuerUrl.pathname.replace(/\/+$/, '');
-    return issuerUrl.toString();
-  } catch (error) {
-    console.warn('Invalid CF_ACCESS_JWT_ISS value; ignoring', error);
-    return null;
-  }
+  return {
+    email,
+    sub: payload.sub ?? "",
+    exp: payload.exp,
+    iat: payload.iat,
+    iss: payload.iss as string,
+    aud: payload.aud as any,
+    raw: payload,
+  };
 }
 
-let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+export type CfAccessClaims = (JWTPayload & { email?: string }) | null;
 
-function getJwks(): ReturnType<typeof createRemoteJWKSet> | null {
-  const issuer = getIssuer();
-  if (!issuer) {
-    return null;
-  }
-
-  if (!jwks) {
-    try {
-      const jwksUrl = new URL('/cdn-cgi/access/certs', issuer);
-      jwks = createRemoteJWKSet(jwksUrl);
-    } catch (error) {
-      console.error('Failed to create CF Access JWKS client', error);
-      return null;
-    }
-  }
-
-  return jwks;
-}
-
-function readAccessJwt(): string | null {
-  const headerBag = headers();
-  const assertion = headerBag.get('Cf-Access-Jwt-Assertion') ?? headerBag.get('cf-access-jwt-assertion');
-  if (assertion && assertion.trim()) {
-    return assertion.trim();
-  }
-
-  const cookieStore = cookies();
-  const cookieToken = cookieStore.get('CF_Authorization')?.value;
-  if (cookieToken && cookieToken.trim()) {
-    return cookieToken.trim();
-  }
-
-  return null;
-}
-
-async function verifyAssertion(token: string): Promise<CfAccessClaims | null> {
-  const jwkClient = getJwks();
-  const audience = normaliseAudience(process.env.CF_ACCESS_JWT_AUD);
-  const issuer = getIssuer();
-
-  if (!jwkClient || !audience || !issuer) {
-    return null;
-  }
-
-  try {
-    const { payload } = await jwtVerify(token, jwkClient, {
-      issuer,
-      audience
-    });
-
-    return payload as CfAccessClaims;
-  } catch (error) {
-    console.warn('Failed to verify Cloudflare Access JWT', error);
-    return null;
-  }
-}
-
-export async function verifyCfAccessAssertion(assertion: string | null | undefined): Promise<CfAccessClaims | null> {
+export async function verifyCfAccessAssertion(assertion: string | null | undefined): Promise<CfAccessClaims> {
   if (!assertion || !assertion.trim()) {
     return null;
   }
 
-  return verifyAssertion(assertion.trim());
-}
-
-export async function getCfAccessClaims(): Promise<CfAccessClaims | null> {
-  const token = readAccessJwt();
-  if (!token) {
+  try {
+    const verified = await verifyAccessJwt(assertion.trim());
+    return { ...verified.raw, email: verified.email };
+  } catch (error) {
+    console.warn("Failed to verify Cloudflare Access JWT", error);
     return null;
   }
-
-  return verifyCfAccessAssertion(token);
-}
-
-export async function getCfAccessEmail(): Promise<string | null> {
-  const headerBag = headers();
-  const forwardedEmail =
-    headerBag.get('x-authenticated-staff-email') ??
-    headerBag.get('x-session-user-email') ??
-    headerBag.get('CF-Access-Authenticated-User-Email') ??
-    headerBag.get('cf-access-authenticated-user-email');
-
-  const normalisedHeader = normaliseStaffEmail(forwardedEmail);
-  if (normalisedHeader) {
-    return normalisedHeader;
-  }
-
-  const claims = await getCfAccessClaims();
-  if (!claims) {
-    return null;
-  }
-
-  const claimEmail = normaliseStaffEmail(
-    (claims?.email as string | undefined)
-      ?? (typeof claims?.preferred_username === 'string' ? claims.preferred_username : undefined)
-      ?? (typeof claims?.name === 'string' ? claims.name : undefined)
-  );
-
-  return claimEmail ?? null;
 }
