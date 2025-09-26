@@ -26,8 +26,8 @@ export type VerifiedIdentity = {
 export async function verifyAccessJwt(jwt: string): Promise<VerifiedIdentity> {
   // Verify signature and default claims first
   const { payload } = await jwtVerify(jwt, JWKS, {
-    // issuer looks like: https://${TEAM_DOMAIN}/
-    issuer: `https://${TEAM_DOMAIN}/`,
+    // issuer looks like: https://${TEAM_DOMAIN}
+    issuer: `https://${TEAM_DOMAIN}`,
     audience: EXPECTED_AUD,
   });
 
