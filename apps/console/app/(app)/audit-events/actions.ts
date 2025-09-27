@@ -1,7 +1,7 @@
 'use server';
 
 import { requireStaff } from '../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase/admin';
 import { getAnalyticsClient } from '../../../lib/analytics';
 import { FilterSchema, FilterValues, AuditEventRow } from './shared';
 

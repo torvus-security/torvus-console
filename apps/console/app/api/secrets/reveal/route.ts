@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireStaff } from '../../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 import { consumeReveal, getDecrypted, maskSecretTail } from '../../../../server/secrets';
 
 const RevealSchema = z.object({

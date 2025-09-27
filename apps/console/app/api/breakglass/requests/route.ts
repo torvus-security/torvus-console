@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSelf } from '../../../../lib/self';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 import { hasRoleAt } from '../../../../server/roles';
 import { createRequest } from '../../../../server/breakglass';
 

@@ -1,11 +1,11 @@
 import { headers } from 'next/headers';
 import {
   createSupabaseServerClient,
-  createSupabaseServiceRoleClient,
   SupabaseConfigurationError,
   isSupabaseConfigured,
   isTransientSupabaseError
 } from './supabase';
+import { createSupabaseServiceRoleClient } from './supabase/admin';
 import type { PermissionKey } from './rbac';
 import { expandPermissionsForRoles } from './rbac';
 import { anonymiseEmail } from './analytics';

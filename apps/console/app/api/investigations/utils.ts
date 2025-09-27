@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase/admin';
 import {
   getIdentityFromRequestHeaders,
   getStaffUserByEmail,

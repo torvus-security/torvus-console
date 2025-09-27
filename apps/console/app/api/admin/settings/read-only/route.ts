@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getIdentityFromRequestHeaders, getUserRolesByEmail, getStaffUserByEmail } from '../../../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase/admin';
 import { getReadOnly, setReadOnly } from '../../../../../server/settings';
 
 export const dynamic = 'force-dynamic';

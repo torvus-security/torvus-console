@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { Box, Button, Text } from '@radix-ui/themes';
 import { ProfileForm, type ProfileFormState } from './ProfileForm';
 import { getStaffUser } from '../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase/admin';
 import { PersonalAccessTokensPanel } from './PersonalAccessTokensPanel';
 import { enforceNotReadOnly, isReadOnlyError } from '../../../server/guard';
 import { PageHeader } from '../../../components/navigation/page-header';

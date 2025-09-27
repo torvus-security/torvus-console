@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../supabase';
+import { createSupabaseServiceRoleClient } from '../supabase/admin';
 import type { PostgrestLikeOrSupabase } from '../types';
 import { normaliseStaffEmail } from '../auth/email';
 import { getDevStaffConfig } from '../devStaff';

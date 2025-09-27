@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { requireStaff } from '../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase/admin';
 import { getAnalyticsClient } from '../../../lib/analytics';
 import { PageHeader } from '../../../components/PageHeader';
 import { exportAuditCsv, exportAuditJson } from './actions';

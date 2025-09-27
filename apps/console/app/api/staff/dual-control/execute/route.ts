@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase/admin';
 import { requireStaff } from '../../../../../lib/auth';
 import { getAnalyticsClient } from '../../../../../lib/analytics';
 import type { PermissionKey } from '../../../../../lib/rbac';

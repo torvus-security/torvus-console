@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { requireStaff } from '../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../lib/supabase/admin';
 import { getAnalyticsClient } from '../../lib/analytics';
 import type { EnrollmentState } from './types';
 

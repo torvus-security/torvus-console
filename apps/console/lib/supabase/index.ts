@@ -1,4 +1,3 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
@@ -66,23 +65,6 @@ export function createSupabaseServerClient<TDatabase = Database>() {
     supabaseUrl: process.env.SUPABASE_URL!,
     supabaseKey: process.env.SUPABASE_ANON_KEY!
   });
-}
-
-let serviceRoleClient: SupabaseClient<Database> | null = null;
-
-export function createSupabaseServiceRoleClient<TDatabase = Database>(): SupabaseClient<TDatabase> {
-  assertEnv();
-
-  if (!serviceRoleClient) {
-    serviceRoleClient = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-  }
-
-  return serviceRoleClient as SupabaseClient<TDatabase>;
 }
 
 export function getSupabaseConfig() {
