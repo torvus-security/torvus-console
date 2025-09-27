@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 import { listSigningJobs } from '../../../../lib/rpc/signing';
 
@@ -12,7 +14,7 @@ type TableCheckResult = {
 };
 
 async function verifyTableReadBlocked(
-  supabase: ReturnType<typeof createSupabaseServiceRoleClient>,
+  supabase: SupabaseClient,
   table: string
 ): Promise<TableCheckResult> {
   const { error } = (await (supabase.from(table) as any).select('id').limit(1)) as {
