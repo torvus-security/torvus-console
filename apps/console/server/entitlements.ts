@@ -107,7 +107,7 @@ export async function getUserByEmail(email: string, client?: SupabaseClient<any>
   }
 
   const supabase = getClient(client);
-  const response = (await supabase.auth.admin.getUserByEmail(normalisedEmail)) as AdminResponse;
+  const response = (await (supabase.auth.admin as any).getUserByEmail(normalisedEmail)) as AdminResponse;
 
   if (response.error) {
     if (response.error.status === 404) {

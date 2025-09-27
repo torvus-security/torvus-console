@@ -28,5 +28,5 @@ export function createSupabaseServiceRoleClient<TDatabase = Database>(): Supabas
     });
   }
 
-  return serviceRoleClient as SupabaseClient<TDatabase>;
+  return serviceRoleClient as unknown as SupabaseClient<TDatabase>;
 }
