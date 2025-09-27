@@ -1,6 +1,7 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
+
+import type { SigningJobRecord, SigningReceiptRecord } from '../../types/internal/signing';
 
 const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE'] as const;
 
@@ -58,7 +59,28 @@ function assertEnv() {
   }
 }
 
-export type Database = Record<string, never>; // Placeholder until Database types are generated
+export type Database = {
+  public: {
+    Tables: Record<string, never>;
+    Views: Record<string, never>;
+    Functions: {
+      signing_job_get: {
+        Args: { p_id: string };
+        Returns: SigningJobRecord | null;
+      };
+      signing_receipt_read: {
+        Args: { p_id: string };
+        Returns: SigningReceiptRecord | null;
+      };
+      signing_jobs_list: {
+        Args: { p_limit: number; p_after: string | null };
+        Returns: SigningJobRecord[];
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
 
 export function createSupabaseServerClient<TDatabase = Database>() {
   assertEnv();
@@ -66,23 +88,6 @@ export function createSupabaseServerClient<TDatabase = Database>() {
     supabaseUrl: process.env.SUPABASE_URL!,
     supabaseKey: process.env.SUPABASE_ANON_KEY!
   });
-}
-
-let serviceRoleClient: SupabaseClient<Database> | null = null;
-
-export function createSupabaseServiceRoleClient<TDatabase = Database>(): SupabaseClient<TDatabase> {
-  assertEnv();
-
-  if (!serviceRoleClient) {
-    serviceRoleClient = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE!, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-  }
-
-  return serviceRoleClient as SupabaseClient<TDatabase>;
 }
 
 export function getSupabaseConfig() {

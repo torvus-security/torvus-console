@@ -1,6 +1,6 @@
 import { headers as nextHeaders } from 'next/headers';
 import type { NextRequest } from 'next/server';
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 import {
   getIdentityFromRequestHeaders,
   getSessionUser,

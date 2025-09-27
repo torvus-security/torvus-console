@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 import { logAudit, type RequestLike } from './audit';
 import { sendEvent } from './notify';
 import { INVESTIGATION_SEVERITIES, type InvestigationSeverity } from '../lib/investigations/constants';

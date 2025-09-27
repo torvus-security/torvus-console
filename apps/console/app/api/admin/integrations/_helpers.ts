@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getIdentityFromRequestHeaders, getUserRolesByEmail } from '../../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 
 export type AdminContext = {
   supabase: SupabaseClient<any>;

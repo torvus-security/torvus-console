@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../supabase';
+import { createSupabaseServiceRoleClient } from '../supabase/admin';
 import { normaliseStaffEmail } from '../auth/email';
 
 export type StaffDirectoryEntry = {

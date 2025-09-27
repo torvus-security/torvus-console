@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 
 const TOKEN_BYTE_LENGTH = 32;
 

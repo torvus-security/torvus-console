@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getIdentityFromRequestHeaders, getUserRolesByEmail } from '../../../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../../lib/supabase/admin';
 import { logAudit } from '../../../../../server/audit';
 
 function hasSecurityAdminRole(roles: string[]): boolean {

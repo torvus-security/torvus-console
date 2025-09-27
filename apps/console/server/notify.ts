@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 import { getDecrypted } from './secrets';
 
 type WebhookKind = 'slack' | 'teams';

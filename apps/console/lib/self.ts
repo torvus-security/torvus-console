@@ -1,5 +1,5 @@
 import { getIdentityFromRequestHeaders } from './auth';
-import { createSupabaseServiceRoleClient } from './supabase';
+import { createSupabaseServiceRoleClient } from './supabase/admin';
 import { evaluateAccessGate } from './authz/gate';
 
 export type SelfProfile = {

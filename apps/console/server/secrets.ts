@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 import { encrypt, decrypt } from './crypto';
 import { logAudit } from './audit';
 

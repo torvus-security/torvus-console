@@ -1,9 +1,5 @@
-import {
-  SupabaseConfigurationError,
-  createSupabaseServiceRoleClient,
-  isSupabaseConfigured,
-  isTransientSupabaseError
-} from '../../lib/supabase';
+import { SupabaseConfigurationError, isSupabaseConfigured, isTransientSupabaseError } from '../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../lib/supabase/admin';
 import { getSessionUser } from '../../lib/auth';
 import { normaliseStaffEmail } from '../../lib/auth/email';
 import { getDevStaffConfig } from '../../lib/devStaff';

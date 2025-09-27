@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 
 function normaliseRoleNames(roleNames: string[]): string[] {
   const normalised = new Set<string>();

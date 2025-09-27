@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../supabase';
+import { createSupabaseServiceRoleClient } from '../supabase/admin';
 import {
   INVESTIGATION_SEVERITIES,
   INVESTIGATION_STATUSES,

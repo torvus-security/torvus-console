@@ -1,8 +1,6 @@
 import { getIdentityFromRequestHeaders, getStaffUserByEmail } from '../../../../lib/auth';
-import {
-  SupabaseConfigurationError,
-  createSupabaseServiceRoleClient
-} from '../../../../lib/supabase';
+import { SupabaseConfigurationError } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 
 type ResolutionSuccess = {
   ok: true;

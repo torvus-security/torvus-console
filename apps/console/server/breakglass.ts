@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 import { logAudit } from './audit';
 import { grantTemporaryRoles } from './roles';
 

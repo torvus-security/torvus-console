@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../supabase';
+import { createSupabaseServiceRoleClient } from '../supabase/admin';
 
 type AlertRow = {
   id: string;

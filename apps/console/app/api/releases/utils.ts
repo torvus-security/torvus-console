@@ -5,7 +5,7 @@ import {
   getUserRolesByEmail,
   type StaffUserRecord
 } from '../../../lib/auth';
-import { createSupabaseServiceRoleClient } from '../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../lib/supabase/admin';
 
 type ViewerOk = {
   type: 'ok';

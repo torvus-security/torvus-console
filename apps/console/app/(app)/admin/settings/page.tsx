@@ -1,5 +1,5 @@
 import { ReadOnlySettingsForm } from '../../../../components/admin/ReadOnlySettingsForm';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 import { getReadOnly } from '../../../../server/settings';
 import { loadAuthz, authorizeRoles } from '../../../(lib)/authz';
 import { DeniedPanel } from '../../../(lib)/denied-panel';

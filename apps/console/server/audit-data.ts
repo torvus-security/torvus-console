@@ -1,4 +1,4 @@
-import { createSupabaseServiceRoleClient } from '../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../lib/supabase/admin';
 
 export type AuditEventRow = {
   id: string;

@@ -4,7 +4,7 @@ import {
   type RoleOption,
   type StaffDirectoryEntry
 } from '../../../../components/admin/BreakGlassDashboard';
-import { createSupabaseServiceRoleClient } from '../../../../lib/supabase';
+import { createSupabaseServiceRoleClient } from '../../../../lib/supabase/admin';
 import { loadAuthz } from '../../../(lib)/authz';
 import { DeniedPanel } from '../../../(lib)/denied-panel';
 

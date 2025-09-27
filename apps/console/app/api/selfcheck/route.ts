@@ -103,23 +103,3 @@ export async function GET(request: Request) {
     });
   }
 }
-
-
-// apps/console/app/api/staff/selftest/route.ts
-export const runtime = "nodejs";
-
-import { NextResponse } from "next/server";
-import { getStaffRolesForCurrentUser } from "@/lib/auth/staff";
-
-export async function GET() {
-  try {
-    const { email, roles } = await getStaffRolesForCurrentUser();
-    return NextResponse.json({ ok: true, email, roles });
-  } catch (err: any) {
-    // expose details so we can see what's failing
-    return NextResponse.json(
-      { ok: false, error: err?.message ?? String(err) },
-      { status: 500 }
-    );
-  }
-}
