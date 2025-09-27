@@ -1,6 +1,8 @@
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 
+import type { SigningJobRecord, SigningReceiptRecord } from '../../types/internal/signing';
+
 const requiredEnv = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE'] as const;
 
 export class SupabaseConfigurationError extends Error {
@@ -57,7 +59,28 @@ function assertEnv() {
   }
 }
 
-export type Database = Record<string, never>; // Placeholder until Database types are generated
+export type Database = {
+  public: {
+    Tables: Record<string, never>;
+    Views: Record<string, never>;
+    Functions: {
+      signing_job_get: {
+        Args: { p_id: string };
+        Returns: SigningJobRecord | null;
+      };
+      signing_receipt_read: {
+        Args: { p_id: string };
+        Returns: SigningReceiptRecord | null;
+      };
+      signing_jobs_list: {
+        Args: { p_limit: number; p_after: string | null };
+        Returns: SigningJobRecord[];
+      };
+    };
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
 
 export function createSupabaseServerClient<TDatabase = Database>() {
   assertEnv();
